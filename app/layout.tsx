@@ -12,7 +12,6 @@ import { Toaster } from "@/components/ui/toaster"
 export const metadata: Metadata = {
   title: "FerreMateriales Madrid - Tu ferretería de confianza",
   description: "Encuentra todo lo que necesitas para tus proyectos de construcción, remodelación y bricolaje.",
-  generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -22,6 +21,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
+      <head>
+        <link rel="icon" href="/svg/favicon.svg" />
+      </head>
       <body>
         <ThemeProvider attribute="class" defaultTheme="light">
           <AuthProvider>

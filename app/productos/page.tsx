@@ -109,7 +109,6 @@ export default function ProductsPage() {
             // productsCount={products.length} // Podrías pasar filteredProducts.length si quieres el contador de los productos filtrados
             productsCount={filteredProducts.length} // O products.length para el total
             maxPrice={maxPrice}
-            initialFilters={filters} // Para que los filtros mantengan su estado si es necesario
           />
         </div>
 
@@ -121,7 +120,6 @@ export default function ProductsPage() {
               onFiltersChange={handleFiltersChange}
               productsCount={filteredProducts.length}
               maxPrice={maxPrice}
-              initialFilters={filters}
             />
           </div>
 

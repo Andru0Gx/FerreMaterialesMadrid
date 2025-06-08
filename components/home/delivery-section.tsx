@@ -13,7 +13,7 @@ export default function DeliverySection() {
 
                 <div className="sm:flex-row flex flex-col sm:space-x-14 space-y-5 items-center">
                     <Image
-                        src="" // /img/Delivery.webp
+                        src="/img/Delivery.webp"
                         alt="Delivery"
                         className="lg:size-96 sm:size-80 size-60 rounded-3xl"
                         width={384}
