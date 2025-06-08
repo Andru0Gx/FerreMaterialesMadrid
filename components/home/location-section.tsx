@@ -18,9 +18,13 @@ export default function LocationSection() {
             Maturín, Estado Monagas, Venezuela
           </p>
 
-          <Button className="bg-[var(--primary-color)] hover:bg-[color-mix(in_srgb,var(--primary-color),#000_10%)]">
+          <a
+            className="text-background bg-[var(--primary-color)] hover:bg-[color-mix(in_srgb,var(--primary-color),#000_10%)] py-2 px-4 rounded-md"
+            href="https://maps.app.goo.gl/hLSKQWNEKHDwdmRx7"
+            target="_blank"
+          >
             Ver en Google Maps
-          </Button>
+          </a>
         </div>
       </div>
     </section>
