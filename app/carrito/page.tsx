@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { useCart } from "@/context/cart-context"
 import { useExchangeRate } from "@/hooks/use-exchange-rate"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 
 // Códigos promocionales de ejemplo
 const promoCodes = [

@@ -18,20 +18,11 @@ model User {
   name          String
   email         String      @unique
   role          Role        @default(CUSTOMER)
-  avatar        String?
   phone         String?
-  address       String?
-  city          String?
-  state         String?
-  zip           String?
   isActive      Boolean     @default(true)
   isSubscribed  Boolean     @default(false)
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
   addresses     Address[]
   orders        Order[]
-  reviews       Review[]
-  notifications Notification[]
 
   @@map("users")
 }
@@ -45,8 +36,6 @@ model Address {
   state     String
   zip       String
   isDefault Boolean  @default(false) @map("is_default")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders    Order[]
 
@@ -57,10 +46,6 @@ model Category {
   id          String    @id @default(uuid())
   name        String
   slug        String    @unique
-  image       String?
-  description String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
   products    Product[]
 
   @@map("categories")
@@ -69,11 +54,6 @@ model Category {
 model Brand {
   id          String    @id @default(uuid())
   name        String
-  logo        String?
-  description String?
-  website     String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
   products    Product[]
 
   @@map("brands")
@@ -82,16 +62,6 @@ model Brand {
 model Supplier {
   id          String    @id @default(uuid())
   name        String
-  contactName String?   @map("contact_name")
-  email       String?
-  phone       String?
-  address     String?
-  city        String?
-  state       String?
-  country     String?
-  rating      Float?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
   products    Product[]
 
   @@map("suppliers")
@@ -105,26 +75,16 @@ model Product {
   supplierId      String?         @map("supplier_id")
   price           Float
   discount        Float           @default(0)
-  rating          Float?
-  reviewsCount    Int            @default(0) @map("reviews_count")
   inStock         Boolean        @default(true) @map("in_stock")
   shortDescription String?       @map("short_description")
   description     String
-  featured        Boolean        @default(false)
   slug            String?        @unique
   sku             String?        @unique
-  barcode         String?
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
   category        Category?      @relation(fields: [categoryId], references: [id])
   brand           Brand?         @relation(fields: [brandId], references: [id])
   supplier        Supplier?      @relation(fields: [supplierId], references: [id])
   images          ProductImage[]
-  variants        ProductVariant[]
-  priceHistory    PriceHistory[]
   orderItems      OrderItem[]
-  reviews         Review[]
-  tags            ProductTag[]
 
   @@map("products")
 }
@@ -134,41 +94,9 @@ model ProductImage {
   productId String   @map("product_id")
   imageUrl  String   @map("image_url")
   isPrimary Boolean  @default(false) @map("is_primary")
-  createdAt DateTime @default(now()) @map("created_at")
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("product_images")
-}
-
-model ProductVariant {
-  id        String         @id @default(uuid())
-  productId String         @map("product_id")
-  sku       String?        @unique
-  barcode   String?
-  attributes Json
-  price     Float
-  discount  Float          @default(0)
-  inStock   Boolean        @default(true) @map("in_stock")
-  createdAt DateTime       @default(now()) @map("created_at")
-  updatedAt DateTime       @updatedAt @map("updated_at")
-  product   Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  priceHistory PriceHistory[]
-  orderItems   OrderItem[]
-
-  @@map("product_variants")
-}
-
-model PriceHistory {
-  id        String         @id @default(uuid())
-  productId String         @map("product_id")
-  variantId String?        @map("variant_id")
-  price     Float
-  date      DateTime
-  createdAt DateTime       @default(now()) @map("created_at")
-  product   Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-
-  @@map("price_history")
 }
 
 model Order {
@@ -212,11 +140,8 @@ model Admin {
   email       String    @unique
   role        AdminRole
   permissions Json
-  lastLogin   DateTime? @map("last_login")
   phone       String?
   status      AdminStatus @default(ACTIVE)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@map("admins")
 }
@@ -234,50 +159,8 @@ model Promotion {
   minimumPurchase     Float         @map("minimum_purchase")
   couponCode         String?       @unique @map("coupon_code")
   active             Boolean       @default(true)
-  createdAt          DateTime      @default(now()) @map("created_at")
-  updatedAt          DateTime      @updatedAt @map("updated_at")
 
   @@map("promotions")
-}
-
-model Review {
-  id        String    @id @default(uuid())
-  productId String    @map("product_id")
-  userId    String    @map("user_id")
-  rating    Int
-  title     String
-  comment   String
-  verified  Boolean   @default(false)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("reviews")
-}
-
-model Notification {
-  id        String    @id @default(uuid())
-  userId    String    @map("user_id")
-  title     String
-  message   String
-  type      String
-  link      String?
-  read      Boolean   @default(false)
-  createdAt DateTime  @default(now()) @map("created_at")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("notifications")
-}
-
-model ProductTag {
-  id        Int      @id @default(autoincrement())
-  productId String   @map("product_id")
-  tag       String
-  createdAt DateTime @default(now()) @map("created_at")
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@map("product_tags")
 }
 
 enum Role {

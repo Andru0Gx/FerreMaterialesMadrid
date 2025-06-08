@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { ChevronLeft, CreditCard, MapPin, AlertCircle } from "lucide-react"
 import { format } from "date-fns"
@@ -278,11 +278,10 @@ export default function PedidoDetallePage({ params }) {
                   <div key={index} className="mb-8 flex last:mb-0">
                     <div className="flex flex-col items-center mr-4">
                       <div
-                        className={`rounded-full h-8 w-8 flex items-center justify-center ${
-                          index === order.statusHistory.length - 1
-                            ? "bg-[var(--primary-color)] text-white"
-                            : "bg-gray-200"
-                        }`}
+                        className={`rounded-full h-8 w-8 flex items-center justify-center ${index === order.statusHistory.length - 1
+                          ? "bg-[var(--primary-color)] text-white"
+                          : "bg-gray-200"
+                          }`}
                       >
                         {index + 1}
                       </div>
