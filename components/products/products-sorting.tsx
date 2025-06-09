@@ -6,16 +6,15 @@ import type { Product } from "@/lib/types"
 
 interface ProductsSortingProps {
   products: Product[]
-  filteredProducts: Product[]
   onSort: (sortedProducts: Product[]) => void
 }
 
-export default function ProductsSorting({ products, filteredProducts, onSort }: ProductsSortingProps) {
+export default function ProductsSorting({ products, onSort }: ProductsSortingProps) {
   const [sortOption, setSortOption] = useState("relevance")
 
   useEffect(() => {
     const sortProducts = () => {
-      const sorted = [...filteredProducts]
+      const sorted = [...products]
 
       switch (sortOption) {
         case "price-low":
@@ -41,13 +40,12 @@ export default function ProductsSorting({ products, filteredProducts, onSort }: 
     }
 
     sortProducts()
-  }, [sortOption, filteredProducts, onSort])
+  }, [sortOption, products, onSort])
 
   return (
     <div className="flex items-center justify-between">
       <div className="text-sm text-gray-500">
-        Mostrando <span className="font-medium">{filteredProducts.length}</span> de{" "}
-        <span className="font-medium">{products.length}</span> productos
+        Mostrando <span className="font-medium">{products.length}</span> productos
       </div>
 
       <div className="flex items-center space-x-2">

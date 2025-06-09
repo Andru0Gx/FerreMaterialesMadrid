@@ -27,11 +27,20 @@ export default function ProductCard({ product }: ProductCardProps) {
     e.preventDefault()
     e.stopPropagation()
 
+    if (product.inStock === false) {
+      toast({
+        title: "Producto agotado",
+        description: "Este producto no está disponible actualmente.",
+        variant: "destructive",
+      })
+      return
+    }
+
     addToCart({
       id: product.id,
       name: product.name,
       price: product.price,
-      image: product.images[0],
+      image: product.images?.[0] || "/placeholder.svg",
       category: product.category,
       quantity: 1,
     })
@@ -44,7 +53,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   }
 
   const finalPrice = product.discount > 0 ? product.price * (1 - product.discount / 100) : product.price
-  const bsPrice = rate ? finalPrice * rate : null
+  const bsPrice = rate ? (finalPrice * rate).toFixed(2) : null
 
   return (
     <Link
@@ -55,7 +64,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     >
       <div className="relative h-48 overflow-hidden">
         <Image
-          src={product.images[0] || "/placeholder.svg"}
+          src={product.images?.[0] || "/placeholder.svg"}
           alt={product.name}
           fill
           className={`object-cover transition-transform duration-500 ${isHovered ? "scale-110" : "scale-100"}`}
@@ -92,7 +101,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             </div>
             {bsPrice && (
               <span className="text-sm text-gray-500">
-                Bs. {bsPrice.toFixed(2)}
+                Bs. {bsPrice}
               </span>
             )}
           </div>
@@ -102,6 +111,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             variant="ghost"
             className="h-8 w-8 rounded-full hover:bg-orange-100 hover:text-[var(--primary-color)]"
             onClick={handleAddToCart}
+            disabled={product.inStock === false}
           >
             <ShoppingCart className="h-4 w-4" />
             <span className="sr-only">Añadir al carrito</span>

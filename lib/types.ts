@@ -130,7 +130,7 @@ export interface OrderDetail {
   product?: Product
 }
 
-export interface OrderComplete extends Order {
+export interface OrderComplete extends Omit<Order, 'items'> {
   items: OrderDetail[]
   address?: Address
   paymentMethod?: string
@@ -304,4 +304,11 @@ export interface StatsData {
   totalCustomers: number
   averageOrderValue: number
   pendingOrders: number
+}
+
+export interface Filters {
+  categories: string[]
+  priceRange: [number, number]
+  inStock: boolean
+  onSale: boolean
 }

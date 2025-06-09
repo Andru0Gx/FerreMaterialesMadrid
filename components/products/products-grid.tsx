@@ -5,61 +5,32 @@ import ProductCard from "@/components/products/product-card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { Product } from "@/lib/types"
-import type { Filters } from "./products-filters"
 
 interface ProductsGridProps {
   products: Product[]
-  filters: Filters
 }
 
-export default function ProductsGrid({ products, filters }: ProductsGridProps) {
+export default function ProductsGrid({ products }: ProductsGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const productsPerPage = 9
 
-  // Apply filters
-  const filteredProducts = products.filter((product) => {
-    // Category filter
-    if (filters.categories.length > 0 && !filters.categories.includes(product.category.toLowerCase())) {
-      return false
-    }
-
-    // Price range filter
-    const finalPrice = product.discount > 0 ? product.price * (1 - product.discount / 100) : product.price
-
-    if (finalPrice < filters.priceRange[0] || finalPrice > filters.priceRange[1]) {
-      return false
-    }
-
-    // In stock filter
-    if (filters.inStock && product.inStock === false) {
-      return false
-    }
-
-    // On sale filter
-    if (filters.onSale && product.discount <= 0) {
-      return false
-    }
-
-    return true
-  })
-
   const indexOfLastProduct = currentPage * productsPerPage
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage
-  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct)
+  const currentProducts = products.slice(indexOfFirstProduct, indexOfLastProduct)
 
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
+  const totalPages = Math.ceil(products.length / productsPerPage)
 
-  // Reset to first page when filters change
+  // Reset to first page when products change
   useEffect(() => {
     setCurrentPage(1)
-  }, [filters])
+  }, [products])
 
   const handlePageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  if (filteredProducts.length === 0) {
+  if (products.length === 0) {
     return (
       <div className="text-center py-12">
         <h3 className="text-lg font-medium mb-2">No se encontraron productos</h3>

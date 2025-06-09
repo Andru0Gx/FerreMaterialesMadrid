@@ -14,6 +14,7 @@ export default function ProductsPage() {
   const searchParams = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [sortedProducts, setSortedProducts] = useState<Product[]>([])
 
   // Cargar productos desde la base de datos
   useEffect(() => {
@@ -22,6 +23,7 @@ export default function ProductsPage() {
         const response = await fetch('/api/products')
         const data = await response.json()
         setProducts(data)
+        setSortedProducts(data) // Inicializar sortedProducts con los mismos datos
       } catch (error) {
         console.error('Error al cargar productos:', error)
       } finally {
@@ -39,18 +41,22 @@ export default function ProductsPage() {
 
   // Initialize filters from URL parameters
   const [filters, setFilters] = useState<Filters>(() => {
+    const category = searchParams?.get("category")
+    const minPrice = searchParams?.get("minPrice")
+    const maxPriceParam = searchParams?.get("maxPrice")
+    const inStock = searchParams?.get("inStock")
+    const onSale = searchParams?.get("onSale")
+
     return {
-      categories: searchParams.get("category") ? [searchParams.get("category")!.toLowerCase()] : [],
+      categories: category ? [category.toLowerCase()] : [],
       priceRange: [
-        Number(searchParams.get("minPrice")) || 0,
-        Number(searchParams.get("maxPrice")) || maxPrice,
-      ],
-      inStock: searchParams.get("inStock") === "true",
-      onSale: searchParams.get("onSale") === "true",
+        minPrice ? Number(minPrice) : 0,
+        maxPriceParam ? Number(maxPriceParam) : maxPrice,
+      ] as [number, number],
+      inStock: inStock === "true",
+      onSale: onSale === "true",
     }
   })
-
-  const [sortedProducts, setSortedProducts] = useState<Product[]>([])
 
   // Update URL when filters change
   useEffect(() => {
@@ -74,10 +80,18 @@ export default function ProductsPage() {
 
     const search = params.toString()
     const query = search ? `?${search}` : ""
-    router.push(`/productos${query}`)
+    router.push(`/productos${query}`, { scroll: false })
   }, [filters, maxPrice, router])
 
-  // Apply filters
+  const handleFiltersChange = useCallback((newFilters: Filters) => {
+    setFilters(newFilters)
+  }, [])
+
+  const handleSort = useCallback((newSortedProducts: Product[]) => {
+    setSortedProducts(newSortedProducts)
+  }, [])
+
+  // Aplicar filtros a los productos
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       // Category filter
@@ -93,7 +107,7 @@ export default function ProductsPage() {
       }
 
       // In stock filter
-      if (filters.inStock && !product.inStock) {
+      if (filters.inStock && product.inStock === false) {
         return false
       }
 
@@ -106,18 +120,10 @@ export default function ProductsPage() {
     })
   }, [products, filters])
 
-  // Update sorted products when filtered products change
+  // Actualizar productos ordenados cuando cambian los filtros
   useEffect(() => {
     setSortedProducts(filteredProducts)
   }, [filteredProducts])
-
-  const handleFiltersChange = useCallback((newFilters: Filters) => {
-    setFilters(newFilters)
-  }, [])
-
-  const handleSort = useCallback((newSortedProducts: Product[]) => {
-    setSortedProducts(newSortedProducts)
-  }, [])
 
   if (loading) {
     return <ProductsGridSkeleton />
@@ -134,6 +140,7 @@ export default function ProductsPage() {
             onFiltersChange={handleFiltersChange}
             productsCount={filteredProducts.length}
             maxPrice={maxPrice}
+            currentFilters={filters}
           />
         </div>
 
@@ -145,18 +152,18 @@ export default function ProductsPage() {
               onFiltersChange={handleFiltersChange}
               productsCount={filteredProducts.length}
               maxPrice={maxPrice}
+              currentFilters={filters}
             />
           </div>
 
           <div className="mb-6">
             <ProductsSorting
-              products={products}
-              filteredProducts={filteredProducts}
+              products={filteredProducts}
               onSort={handleSort}
             />
           </div>
 
-          <ProductsGrid products={sortedProducts} filters={filters} />
+          <ProductsGrid products={sortedProducts} />
         </div>
       </div>
     </div>

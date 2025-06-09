@@ -20,20 +20,21 @@ interface ProductsFiltersProps {
   onFiltersChange: (filters: Filters) => void
   productsCount: number
   maxPrice: number
+  currentFilters?: Filters
 }
 
-export default function ProductsFilters({ onFiltersChange, productsCount, maxPrice = 1000 }: ProductsFiltersProps) {
+export default function ProductsFilters({
+  onFiltersChange,
+  productsCount,
+  maxPrice = 1000,
+  currentFilters
+}: ProductsFiltersProps) {
   const searchParams = useSearchParams()
-  const [filters, setFilters] = useState<Filters>(() => {
-    return {
-      categories: searchParams.get("category") ? [searchParams.get("category")!.toLowerCase()] : [],
-      priceRange: [
-        Number(searchParams.get("minPrice")) || 0,
-        Number(searchParams.get("maxPrice")) || maxPrice,
-      ],
-      inStock: searchParams.get("inStock") === "true",
-      onSale: searchParams.get("onSale") === "true",
-    }
+  const [filters, setFilters] = useState<Filters>(currentFilters || {
+    categories: [],
+    priceRange: [0, maxPrice],
+    inStock: false,
+    onSale: false,
   })
   const [isPriceOpen, setIsPriceOpen] = useState(false)
   const isMobile = useMobile()
