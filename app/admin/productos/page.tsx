@@ -28,14 +28,25 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ImageUpload } from "@/components/admin/image-upload"
 import { Plus, Search, MoreVertical, Edit, Trash, Tag, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react"
-import { getProducts, getCategories, getPromotions } from "@/lib/data"
+import { getPromotions } from "@/lib/data"
 import { toast } from "@/components/ui/use-toast"
+
+// Lista predefinida de categorías
+const CATEGORIES = [
+  'Herramientas',
+  'Materiales',
+  'Electricidad',
+  'Plomeria',
+  'Jardineria',
+  'Pinturas',
+  'Otros',
+]
 
 export default function ProductsPage() {
   // Estados para manejar los productos, categorías y promociones
-  const [products, setProducts] = useState(getProducts())
-  const [filteredProducts, setFilteredProducts] = useState(getProducts())
-  const [categories, setCategories] = useState(getCategories)
+  const [products, setProducts] = useState<any[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [promotions, setPromotions] = useState(getPromotions())
   const [filteredPromotions, setFilteredPromotions] = useState(getPromotions())
 
@@ -102,6 +113,20 @@ export default function ProductsPage() {
     value: "",
   })
 
+  useEffect(() => {
+    // Cargar productos y categorías desde la base de datos
+    const fetchData = async () => {
+      const resProducts = await fetch('/api/products')
+      let dbProducts = await resProducts.json()
+      if (!Array.isArray(dbProducts)) dbProducts = []
+      setProducts(dbProducts)
+      setFilteredProducts(dbProducts)
+      // Si tienes categorías predefinidas, puedes asignarlas aquí
+      // setCategories(CATEGORIES)
+    }
+    fetchData()
+  }, [])
+
   // Efecto para filtrar productos
   useEffect(() => {
     let result = products
@@ -163,8 +188,8 @@ export default function ProductsPage() {
     // Ordenar
     if (promotionSortField) {
       result = [...result].sort((a, b) => {
-        let valueA = a[promotionSortField as keyof typeof a]
-        let valueB = b[promotionSortField as keyof typeof b]
+        let valueA = a[promotionSortField as keyof typeof a] || ""
+        let valueB = b[promotionSortField as keyof typeof b] || ""
 
         // Convertir a minúsculas si son strings
         if (typeof valueA === "string") valueA = valueA.toLowerCase()
@@ -212,10 +237,14 @@ export default function ProductsPage() {
         shortDescription: product.shortDescription || "",
         description: product.description || "",
         specifications: Array.isArray(product.specifications)
-          ? product.specifications.map((spec: string) => {
+          ? product.specifications.map((spec: any) => {
+            if (typeof spec === "string") {
               const [title, value] = spec.split(": ")
               return { title: title || spec, value: value || "" }
-            })
+            }
+            // Si ya es objeto, lo devolvemos tal cual
+            return spec
+          })
           : [],
         images: product.images || [],
       })
@@ -297,78 +326,84 @@ export default function ProductsPage() {
   }
 
   // Función para guardar un producto (nuevo o editado)
-  const saveProduct = () => {
-    const newProduct = {
-      id: productForm.id || `product-${Date.now()}`,
+  const saveProduct = async () => {
+    const method = selectedProduct ? 'PUT' : 'POST';
+    const url = selectedProduct ? `/api/products?id=${productForm.id}` : '/api/products';
+    const body = {
       name: productForm.name,
       sku: productForm.sku,
       category: productForm.category,
-      price: Number.parseFloat(productForm.price),
-      stock: Number.parseInt(productForm.stock),
-      inStock: Number.parseInt(productForm.stock) > 0,
+      price: parseFloat(productForm.price),
+      stock: parseInt(productForm.stock),
       shortDescription: productForm.shortDescription,
       description: productForm.description,
-      specifications: productForm.specifications.map((spec) => `${spec.title}: ${spec.value}`),
+      specifications: productForm.specifications,
       images: productForm.images,
-      rating: selectedProduct?.rating || 0,
-      reviews: selectedProduct?.reviews || 0,
-      discount: selectedProduct?.discount || 0,
-      questions: selectedProduct?.questions || [],
-      featured: selectedProduct?.featured || false,
-    }
-
-    if (selectedProduct) {
-      // Editar producto existente
-      setProducts(products.map((p) => (p.id === newProduct.id ? { ...p, ...newProduct } : p)))
+    };
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error('Error al guardar el producto');
       toast({
-        title: "Producto actualizado",
-        description: "El producto ha sido actualizado correctamente",
-      })
-    } else {
-      // Agregar nuevo producto
-      setProducts([...products, newProduct])
+        title: selectedProduct ? 'Producto actualizado' : 'Producto agregado',
+        description: selectedProduct ? 'El producto ha sido actualizado correctamente' : 'El producto ha sido agregado correctamente',
+      });
+      // Refrescar productos desde la base de datos
+      const productosRes = await fetch('/api/products');
+      setProducts(await productosRes.json());
+      setIsProductDialogOpen(false);
+    } catch (error) {
       toast({
-        title: "Producto agregado",
-        description: "El producto ha sido agregado correctamente",
-      })
+        title: 'Error',
+        description: 'Hubo un error al guardar el producto',
+        variant: 'destructive',
+      });
     }
-
-    setIsProductDialogOpen(false)
-  }
+  };
 
   // Función para guardar una promoción (nueva o editada)
-  const savePromotion = () => {
-    const newPromotion = {
-      id: promotionForm.id || `promotion-${Date.now()}`,
-      couponCode: promotionForm.code,
-      discountValue: Number.parseFloat(promotionForm.discountValue),
+  const savePromotion = async () => {
+    const method = selectedPromotion ? 'PUT' : 'POST';
+    const url = selectedPromotion ? `/api/promotions?id=${promotionForm.id}` : '/api/promotions';
+    const body = {
+      name: promotionForm.name,
+      description: promotionForm.description,
       discountType: promotionForm.discountType,
-      durationType: promotionForm.durationType,
+      discountValue: parseFloat(promotionForm.discountValue),
       startDate: promotionForm.startDate,
       endDate: promotionForm.endDate,
-      maxUsage: Number.parseInt(promotionForm.maxUsage),
-      currentUsage: promotionForm.currentUsage,
+      applicableCategories: promotionForm.applicableCategories,
+      applicableProducts: promotionForm.applicableProducts,
+      minimumPurchase: parseFloat(promotionForm.minimumPurchase),
+      couponCode: promotionForm.code,
       active: promotionForm.isActive,
-    }
-
-    if (selectedPromotion) {
-      // Editar promoción existente
-      setPromotions(promotions.map((p) => (p.id === newPromotion.id ? { ...p, ...newPromotion } : p)))
+    };
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error('Error al guardar la promoción');
       toast({
-        title: "Promoción actualizada",
-        description: "La promoción ha sido actualizada correctamente",
-      })
-    } else {
-      // Agregar nueva promoción
-      setPromotions([...promotions, newPromotion])
+        title: selectedPromotion ? 'Promoción actualizada' : 'Promoción agregada',
+        description: selectedPromotion ? 'La promoción ha sido actualizada correctamente' : 'La promoción ha sido agregada correctamente',
+      });
+      // Refrescar promociones desde la base de datos
+      const promosRes = await fetch('/api/promotions');
+      setPromotions(await promosRes.json());
+      setIsPromotionDialogOpen(false);
+    } catch (error) {
       toast({
-        title: "Promoción agregada",
-        description: "La promoción ha sido agregada correctamente",
-      })
+        title: 'Error',
+        description: 'Hubo un error al guardar la promoción',
+        variant: 'destructive',
+      });
     }
-
-    setIsPromotionDialogOpen(false)
-  }
+  };
 
   // Función para aplicar descuento a un producto
   const applyDiscount = () => {
@@ -385,26 +420,50 @@ export default function ProductsPage() {
   }
 
   // Función para eliminar un producto
-  const deleteProduct = () => {
-    setProducts(products.filter((p) => p.id !== selectedProduct.id))
-    toast({
-      title: "Producto eliminado",
-      description: "El producto ha sido eliminado correctamente",
-      variant: "destructive",
-    })
-    setIsDeleteDialogOpen(false)
-  }
+  const deleteProduct = async () => {
+    try {
+      const response = await fetch(`/api/products?id=${selectedProduct.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Error al eliminar el producto');
+      toast({
+        title: 'Producto eliminado',
+        description: 'El producto ha sido eliminado correctamente',
+        variant: 'destructive',
+      });
+      // Refrescar productos desde la base de datos
+      const productosRes = await fetch('/api/products');
+      setProducts(await productosRes.json());
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Hubo un error al eliminar el producto',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Función para eliminar una promoción
-  const deletePromotion = () => {
-    setPromotions(promotions.filter((p) => p.id !== selectedPromotion.id))
-    toast({
-      title: "Promoción eliminada",
-      description: "La promoción ha sido eliminada correctamente",
-      variant: "destructive",
-    })
-    setIsDeletePromotionDialogOpen(false)
-  }
+  const deletePromotion = async () => {
+    try {
+      const response = await fetch(`/api/promotions?id=${selectedPromotion.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Error al eliminar la promoción');
+      toast({
+        title: 'Promoción eliminada',
+        description: 'La promoción ha sido eliminada correctamente',
+        variant: 'destructive',
+      });
+      // Refrescar promociones desde la base de datos
+      const promosRes = await fetch('/api/promotions');
+      setPromotions(await promosRes.json());
+      setIsDeletePromotionDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Hubo un error al eliminar la promoción',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Función para cambiar el estado de una promoción
   const togglePromotionStatus = (promotion: any) => {
@@ -547,9 +606,9 @@ export default function ProductsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas las categorías</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -938,9 +997,9 @@ export default function ProductsPage() {
                     <SelectValue placeholder="Selecciona una categoría" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.name}>
-                        {category.name}
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
                       </SelectItem>
                     ))}
                   </SelectContent>
