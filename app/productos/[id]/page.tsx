@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { notFound } from "next/navigation"
 import { Truck, ShieldCheck } from "lucide-react"
@@ -9,26 +9,54 @@ import ProductQuantity from "@/components/products/product-quantity"
 import ProductGallery from "@/components/products/product-gallery"
 import RelatedProducts from "@/components/products/related-products"
 import AddToCartButton from "@/components/products/add-to-cart-button"
-import { getProductById, getRelatedProducts } from "@/lib/data"
 import { useCart } from "@/context/cart-context"
 
 export default function ProductPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const product = getProductById(params.id)
+  const [product, setProduct] = useState<any>(null)
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const { addToCart } = useCart()
 
-  if (!product) {
-    notFound()
-  }
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        // Obtener el producto
+        const response = await fetch(`/api/products?id=${params.id}`)
+        const data = await response.json()
 
-  const relatedProducts = getRelatedProducts(product.category, product.id)
+        if (!data) {
+          notFound()
+          return
+        }
+
+        setProduct(data)
+
+        // Obtener productos relacionados
+        const relatedResponse = await fetch('/api/products')
+        const allProducts = await relatedResponse.json()
+        const related = allProducts
+          .filter((p: any) => p.category === data.category && p.id !== data.id)
+          .slice(0, 4) // Limitar a 4 productos relacionados
+        setRelatedProducts(related)
+      } catch (error) {
+        console.error('Error al cargar el producto:', error)
+        notFound()
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProduct()
+  }, [params.id])
 
   const handleQuantityChange = (newQuantity: number) => {
     setQuantity(newQuantity)
   }
 
   const handleBuyNow = () => {
+    if (!product) return
+
     addToCart({
       id: product.id,
       name: product.name,
@@ -39,6 +67,27 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     })
 
     router.push("/carrito")
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col px-10 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
+          <div className="h-96 bg-gray-200 animate-pulse rounded-lg"></div>
+          <div className="flex flex-col gap-6">
+            <div className="h-8 bg-gray-200 animate-pulse rounded w-3/4"></div>
+            <div className="h-6 bg-gray-200 animate-pulse rounded w-1/4"></div>
+            <div className="border-t border-b py-4">
+              <div className="h-20 bg-gray-200 animate-pulse rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!product) {
+    notFound()
   }
 
   return (
@@ -122,14 +171,6 @@ export default function ProductPage({ params }: { params: { id: string } }) {
                 Especificaciones
               </a>
             </li>
-            <li className="mr-2">
-              <a
-                href="#questions"
-                className="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300"
-              >
-                Preguntas
-              </a>
-            </li>
           </ul>
         </div>
 
@@ -143,28 +184,16 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           <div id="specifications" className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Especificaciones</h2>
             <ul className="list-disc pl-5 space-y-2">
-              {product.specifications.map((spec, index) => (
-                <li key={index} className="text-gray-700">
-                  {spec}
-                </li>
-              ))}
+              {Array.isArray(product.specifications) ? (
+                product.specifications.map((spec: any, index: number) => (
+                  <li key={index} className="text-gray-700">
+                    {typeof spec === 'string' ? spec : `${spec.title}: ${spec.value}`}
+                  </li>
+                ))
+              ) : (
+                <li className="text-gray-700">No hay especificaciones disponibles</li>
+              )}
             </ul>
-          </div>
-
-          <div id="questions">
-            <h2 className="text-xl font-semibold mb-4">Preguntas frecuentes</h2>
-            {product.questions.length > 0 ? (
-              <div className="space-y-6">
-                {product.questions.map((q, index) => (
-                  <div key={index} className="border-b pb-4">
-                    <p className="font-medium mb-2">P: {q.question}</p>
-                    <p className="text-gray-700">R: {q.answer}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500">No hay preguntas todavía para este producto.</p>
-            )}
           </div>
         </div>
       </div>

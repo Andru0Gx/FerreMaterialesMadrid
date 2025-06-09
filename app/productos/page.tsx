@@ -12,7 +12,24 @@ import type { Product } from "@/lib/types"
 export default function ProductsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const products = getProducts()
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Cargar productos desde la base de datos
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/api/products')
+        const data = await response.json()
+        setProducts(data)
+      } catch (error) {
+        console.error('Error al cargar productos:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProducts()
+  }, [])
 
   // Calculate max price for the price slider
   const maxPrice = useMemo(() => {
@@ -33,7 +50,7 @@ export default function ProductsPage() {
     }
   })
 
-  const [sortedProducts, setSortedProducts] = useState<Product[]>([...products])
+  const [sortedProducts, setSortedProducts] = useState<Product[]>([])
 
   // Update URL when filters change
   useEffect(() => {
@@ -76,7 +93,7 @@ export default function ProductsPage() {
       }
 
       // In stock filter
-      if (filters.inStock && product.inStock === false) {
+      if (filters.inStock && !product.inStock) {
         return false
       }
 
@@ -89,6 +106,11 @@ export default function ProductsPage() {
     })
   }, [products, filters])
 
+  // Update sorted products when filtered products change
+  useEffect(() => {
+    setSortedProducts(filteredProducts)
+  }, [filteredProducts])
+
   const handleFiltersChange = useCallback((newFilters: Filters) => {
     setFilters(newFilters)
   }, [])
@@ -96,6 +118,10 @@ export default function ProductsPage() {
   const handleSort = useCallback((newSortedProducts: Product[]) => {
     setSortedProducts(newSortedProducts)
   }, [])
+
+  if (loading) {
+    return <ProductsGridSkeleton />
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -106,8 +132,7 @@ export default function ProductsPage() {
         <div className="w-full md:w-1/4 hidden md:block">
           <ProductsFilters
             onFiltersChange={handleFiltersChange}
-            // productsCount={products.length} // Podrías pasar filteredProducts.length si quieres el contador de los productos filtrados
-            productsCount={filteredProducts.length} // O products.length para el total
+            productsCount={filteredProducts.length}
             maxPrice={maxPrice}
           />
         </div>
@@ -124,21 +149,13 @@ export default function ProductsPage() {
           </div>
 
           <div className="mb-6">
-            {/*
-              Pasas `products` (la lista original completa) y `filteredProducts`.
-              `ProductsSorting` debería usar `filteredProducts` como la base para ordenar.
-            */}
             <ProductsSorting
-              products={products} /* Para el conteo total */
-              filteredProducts={filteredProducts} /* Para ordenar y contar los mostrados */
+              products={products}
+              filteredProducts={filteredProducts}
               onSort={handleSort}
             />
           </div>
 
-          {/*
-            Deberías mostrar `sortedProducts` ya que es el resultado de aplicar
-            filtros Y luego ordenación.
-          */}
           <ProductsGrid products={sortedProducts} filters={filters} />
         </div>
       </div>
