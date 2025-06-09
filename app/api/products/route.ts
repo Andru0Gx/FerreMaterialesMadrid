@@ -235,6 +235,13 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ status: 'error', message: 'ID requerido' }, { status: 400 })
         }
         const numericId = Number(id)
+
+        // Primero eliminamos las imágenes asociadas
+        await prisma.productImage.deleteMany({
+            where: { productId: numericId }
+        })
+
+        // Luego eliminamos el producto
         await prisma.product.delete({ where: { id: numericId } })
         return NextResponse.json({ status: 'ok' })
     } catch (error) {

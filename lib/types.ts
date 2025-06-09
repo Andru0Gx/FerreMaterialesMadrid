@@ -153,7 +153,7 @@ export interface Promotion {
   id: string
   name: string
   description: string
-  discountType: "percentage" | "fixed" | "buyXgetY" | "freeShipping"
+  discountType: "PORCENTAJE" | "FIJO" | "ENVIO_GRATIS"
   discountValue: number
   startDate: string
   endDate: string
@@ -162,6 +162,9 @@ export interface Promotion {
   minimumPurchase: number
   couponCode?: string
   active: boolean
+  durationType?: "date" | "usage" | "both"
+  maxUsage?: number
+  currentUsage?: number
 }
 
 export interface PaymentMethod {
@@ -197,7 +200,7 @@ export interface Review {
 export interface Coupon {
   id: string
   code: string
-  discountType: "percentage" | "fixed" | "freeShipping"
+  discountType: "PORCENTAJE" | "FIJO" | "ENVIO_GRATIS"
   discountValue: number
   minimumPurchase: number
   startDate: string

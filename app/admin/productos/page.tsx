@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ImageUpload } from "@/components/admin/image-upload"
 import { Plus, Search, MoreVertical, Edit, Trash, Tag, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react"
-import { getPromotions } from "@/lib/data"
 import { toast } from "@/components/ui/use-toast"
 
 // Lista predefinida de categorías
@@ -47,8 +46,8 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([])
   const [filteredProducts, setFilteredProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
-  const [promotions, setPromotions] = useState(getPromotions())
-  const [filteredPromotions, setFilteredPromotions] = useState(getPromotions())
+  const [promotions, setPromotions] = useState<any[]>([])
+  const [filteredPromotions, setFilteredPromotions] = useState<any[]>([])
 
   // Estados para los filtros
   const [searchTerm, setSearchTerm] = useState("")
@@ -89,22 +88,23 @@ export default function ProductsPage() {
   const [promotionForm, setPromotionForm] = useState({
     id: "",
     code: "",
+    description: "",
     discountValue: "",
-    discountType: "percentage", // "percentage" o "fixed"
-    durationType: "date", // "date", "usage", "both"
+    discountType: "PORCENTAJE", // Valores válidos: PORCENTAJE, FIJO, ENVIO_GRATIS
+    durationType: "date",
     startDate: "",
     endDate: "",
     maxUsage: "",
     currentUsage: 0,
     isActive: false,
+    applicableCategories: [],
+    applicableProducts: [],
+    minimumPurchase: "",
   })
 
   // Estado para el formulario de descuento
   const [discountForm, setDiscountForm] = useState({
     discountPercentage: "",
-    startDate: "",
-    endDate: "",
-    description: "",
   })
 
   // Estado para nueva especificación
@@ -113,16 +113,34 @@ export default function ProductsPage() {
     value: "",
   })
 
+  // Estado para deshabilitar el botón Guardar mientras se guarda
+  const [isSavingPromotion, setIsSavingPromotion] = useState(false)
+
   useEffect(() => {
-    // Cargar productos y categorías desde la base de datos
+    // Cargar productos y promociones desde la base de datos
     const fetchData = async () => {
-      const resProducts = await fetch('/api/products')
-      let dbProducts = await resProducts.json()
-      if (!Array.isArray(dbProducts)) dbProducts = []
-      setProducts(dbProducts)
-      setFilteredProducts(dbProducts)
-      // Si tienes categorías predefinidas, puedes asignarlas aquí
-      // setCategories(CATEGORIES)
+      try {
+        // Cargar productos
+        const resProducts = await fetch('/api/products')
+        let dbProducts = await resProducts.json()
+        if (!Array.isArray(dbProducts)) dbProducts = []
+        setProducts(dbProducts)
+        setFilteredProducts(dbProducts)
+
+        // Cargar promociones
+        const resPromotions = await fetch('/api/promotions')
+        let dbPromotions = await resPromotions.json()
+        if (!Array.isArray(dbPromotions)) dbPromotions = []
+        setPromotions(dbPromotions)
+        setFilteredPromotions(dbPromotions)
+      } catch (error) {
+        console.error('Error al cargar datos:', error)
+        toast({
+          title: "Error",
+          description: "Hubo un error al cargar los datos",
+          variant: "destructive",
+        })
+      }
     }
     fetchData()
   }, [])
@@ -180,16 +198,16 @@ export default function ProductsPage() {
     if (promotionSearchTerm) {
       result = result.filter(
         (promotion) =>
-          promotion.name.toLowerCase().includes(promotionSearchTerm.toLowerCase()) ||
-          promotion.description?.toLowerCase().includes(promotionSearchTerm.toLowerCase()),
+          promotion.couponCode?.toLowerCase().includes(promotionSearchTerm.toLowerCase()) ||
+          promotion.description?.toLowerCase().includes(promotionSearchTerm.toLowerCase())
       )
     }
 
     // Ordenar
     if (promotionSortField) {
       result = [...result].sort((a, b) => {
-        let valueA = a[promotionSortField as keyof typeof a] || ""
-        let valueB = b[promotionSortField as keyof typeof b] || ""
+        let valueA = a[promotionSortField] || ""
+        let valueB = b[promotionSortField] || ""
 
         // Convertir a minúsculas si son strings
         if (typeof valueA === "string") valueA = valueA.toLowerCase()
@@ -270,31 +288,55 @@ export default function ProductsPage() {
   // Función para abrir el formulario de promoción (nuevo o editar)
   const openPromotionForm = (promotion?: any) => {
     if (promotion) {
+      // Función auxiliar para formatear la fecha a YYYY-MM-DD para el input
+      const formatDateForInput = (date: string | null) => {
+        if (!date) return "";
+        return new Date(date).toISOString().split('T')[0];
+      };
+
+      // Función auxiliar para mostrar la fecha en formato venezolano
+      const formatDateForDisplay = (date: string | null) => {
+        if (!date) return "";
+        return new Date(date).toLocaleDateString('es-VE', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+      };
+
       setPromotionForm({
         id: promotion.id,
         code: promotion.couponCode || "",
+        description: promotion.description || "",
         discountValue: promotion.discountValue?.toString() || "",
-        discountType: promotion.discountType || "percentage",
+        discountType: promotion.discountType || "PORCENTAJE",
         durationType: promotion.durationType || "date",
-        startDate: promotion.startDate || "",
-        endDate: promotion.endDate || "",
+        startDate: formatDateForInput(promotion.startDate),
+        endDate: formatDateForInput(promotion.endDate),
         maxUsage: promotion.maxUsage?.toString() || "",
         currentUsage: promotion.currentUsage || 0,
         isActive: promotion.active || false,
+        applicableCategories: promotion.applicableCategories || [],
+        applicableProducts: promotion.applicableProducts || [],
+        minimumPurchase: promotion.minimumPurchase?.toString() || "",
       })
       setSelectedPromotion(promotion)
     } else {
       setPromotionForm({
         id: "",
         code: "",
+        description: "",
         discountValue: "",
-        discountType: "percentage",
+        discountType: "PORCENTAJE",
         durationType: "date",
         startDate: "",
         endDate: "",
         maxUsage: "",
         currentUsage: 0,
         isActive: false,
+        applicableCategories: [],
+        applicableProducts: [],
+        minimumPurchase: "",
       })
       setSelectedPromotion(null)
     }
@@ -306,9 +348,6 @@ export default function ProductsPage() {
     setSelectedProduct(product)
     setDiscountForm({
       discountPercentage: product.discount?.toString() || "",
-      startDate: "",
-      endDate: "",
-      description: "",
     })
     setIsDiscountDialogOpen(true)
   }
@@ -366,57 +405,150 @@ export default function ProductsPage() {
 
   // Función para guardar una promoción (nueva o editada)
   const savePromotion = async () => {
+    // Validación de campos obligatorios
+    console.log('Tipo de descuento:', promotionForm.discountType) // Debug log
+
+    if (!promotionForm.code || promotionForm.code.trim().length < 3) {
+      toast({ title: 'Error', description: 'El código de la promoción es obligatorio y debe tener al menos 3 caracteres.', variant: 'destructive' });
+      return;
+    }
+    if (!promotionForm.discountValue || isNaN(Number(promotionForm.discountValue)) || Number(promotionForm.discountValue) <= 0) {
+      toast({ title: 'Error', description: 'El valor del descuento debe ser un número mayor a 0.', variant: 'destructive' });
+      return;
+    }
+    if (!promotionForm.discountType || !['PORCENTAJE', 'FIJO', 'ENVIO_GRATIS'].includes(promotionForm.discountType)) {
+      toast({ title: 'Error', description: 'Selecciona un tipo de descuento válido.', variant: 'destructive' });
+      return;
+    }
+
+    // Validar que al menos se haya especificado una fecha o un máximo de usos
+    const hasDates = promotionForm.startDate && promotionForm.endDate;
+    const hasUsage = promotionForm.maxUsage && parseInt(promotionForm.maxUsage) > 0;
+
+    if (!hasDates && !hasUsage) {
+      toast({
+        title: 'Error',
+        description: 'Debes especificar al menos un período de validez (fechas) o un límite de usos.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Si se especificaron fechas, validar que sean coherentes
+    if (promotionForm.startDate && promotionForm.endDate) {
+      const start = new Date(promotionForm.startDate);
+      const end = new Date(promotionForm.endDate);
+      if (end < start) {
+        toast({
+          title: 'Error',
+          description: 'La fecha de fin debe ser posterior a la fecha de inicio.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
     const method = selectedPromotion ? 'PUT' : 'POST';
     const url = selectedPromotion ? `/api/promotions?id=${promotionForm.id}` : '/api/promotions';
+
     const body = {
-      name: promotionForm.name,
-      description: promotionForm.description,
       discountType: promotionForm.discountType,
       discountValue: parseFloat(promotionForm.discountValue),
-      startDate: promotionForm.startDate,
-      endDate: promotionForm.endDate,
-      applicableCategories: promotionForm.applicableCategories,
-      applicableProducts: promotionForm.applicableProducts,
-      minimumPurchase: parseFloat(promotionForm.minimumPurchase),
       couponCode: promotionForm.code,
+      maxUsage: promotionForm.maxUsage ? parseInt(promotionForm.maxUsage) : null,
       active: promotionForm.isActive,
+      startDate: promotionForm.startDate ? new Date(promotionForm.startDate).toISOString() : null,
+      endDate: promotionForm.endDate ? new Date(promotionForm.endDate).toISOString() : null,
     };
+
+    console.log('Body a enviar:', body); // Debug log
+
     try {
+      setIsSavingPromotion(true);
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!response.ok) throw new Error('Error al guardar la promoción');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error response:', errorData); // Debug log
+        throw new Error(errorData.message || 'Error al guardar la promoción');
+      }
+
+      const data = await response.json();
+      console.log('Response data:', data); // Debug log
+
       toast({
         title: selectedPromotion ? 'Promoción actualizada' : 'Promoción agregada',
         description: selectedPromotion ? 'La promoción ha sido actualizada correctamente' : 'La promoción ha sido agregada correctamente',
       });
+
       // Refrescar promociones desde la base de datos
       const promosRes = await fetch('/api/promotions');
       setPromotions(await promosRes.json());
       setIsPromotionDialogOpen(false);
     } catch (error) {
+      console.error('Error completo:', error); // Debug log
       toast({
         title: 'Error',
-        description: 'Hubo un error al guardar la promoción',
+        description: error instanceof Error ? error.message : 'Hubo un error al guardar la promoción',
         variant: 'destructive',
       });
+    } finally {
+      setIsSavingPromotion(false);
     }
   };
 
   // Función para aplicar descuento a un producto
-  const applyDiscount = () => {
-    const discountValue = Number.parseFloat(discountForm.discountPercentage)
+  const applyDiscount = async () => {
+    if (!selectedProduct) return;
 
-    setProducts(products.map((p) => (p.id === selectedProduct.id ? { ...p, discount: discountValue } : p)))
+    const discountValue = Number.parseFloat(discountForm.discountPercentage);
+    if (isNaN(discountValue) || discountValue < 0 || discountValue > 100) {
+      toast({
+        title: "Error",
+        description: "El descuento debe ser un número entre 0 y 100",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    toast({
-      title: "Descuento aplicado",
-      description: `Se ha aplicado un descuento del ${discountValue}% al producto "${selectedProduct.name}"`,
-    })
+    try {
+      const response = await fetch(`/api/products?id=${selectedProduct.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...selectedProduct,
+          discount: discountValue,
+        }),
+      });
 
-    setIsDiscountDialogOpen(false)
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al aplicar el descuento');
+      }
+
+      // Refrescar productos desde la base de datos
+      const productsRes = await fetch('/api/products');
+      const updatedProducts = await productsRes.json();
+      setProducts(updatedProducts);
+
+      toast({
+        title: "Descuento aplicado",
+        description: `Se ha aplicado un descuento del ${discountValue}% al producto "${selectedProduct.name}"`,
+      });
+
+      setIsDiscountDialogOpen(false);
+    } catch (error) {
+      console.error('Error al aplicar descuento:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Hubo un error al aplicar el descuento',
+        variant: 'destructive',
+      });
+    }
   }
 
   // Función para eliminar un producto
@@ -446,7 +578,15 @@ export default function ProductsPage() {
   const deletePromotion = async () => {
     try {
       const response = await fetch(`/api/promotions?id=${selectedPromotion.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Error al eliminar la promoción');
+      if (!response.ok) {
+        const errorData = await response.json();
+        toast({
+          title: 'Error',
+          description: errorData?.message || 'Hubo un error al eliminar la promoción',
+          variant: 'destructive',
+        });
+        return;
+      }
       toast({
         title: 'Promoción eliminada',
         description: 'La promoción ha sido eliminada correctamente',
@@ -466,12 +606,39 @@ export default function ProductsPage() {
   };
 
   // Función para cambiar el estado de una promoción
-  const togglePromotionStatus = (promotion: any) => {
-    setPromotions(promotions.map((p) => (p.id === promotion.id ? { ...p, active: !p.active } : p)))
-    toast({
-      title: promotion.active ? "Promoción desactivada" : "Promoción activada",
-      description: `La promoción "${promotion.name}" ha sido ${promotion.active ? "desactivada" : "activada"}`,
-    })
+  const togglePromotionStatus = async (promotion: any) => {
+    try {
+      const response = await fetch(`/api/promotions?id=${promotion.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...promotion,
+          active: !promotion.active,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al actualizar el estado de la promoción');
+      }
+
+      // Refrescar promociones desde la base de datos
+      const promosRes = await fetch('/api/promotions');
+      const updatedPromotions = await promosRes.json();
+      setPromotions(updatedPromotions);
+
+      toast({
+        title: !promotion.active ? "Promoción activada" : "Promoción desactivada",
+        description: `La promoción "${promotion.couponCode}" ha sido ${!promotion.active ? "activada" : "desactivada"}`,
+      });
+    } catch (error) {
+      console.error('Error al cambiar estado de promoción:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Hubo un error al actualizar el estado de la promoción',
+        variant: 'destructive',
+      });
+    }
   }
 
   // Función para manejar cambios en el formulario de producto
@@ -572,6 +739,42 @@ export default function ProductsPage() {
       ...productForm,
       specifications: productForm.specifications.filter((_, i) => i !== index),
     })
+  }
+
+  // Función para quitar el descuento de un producto
+  const removeDiscount = async (product: any) => {
+    try {
+      const response = await fetch(`/api/products?id=${product.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...product,
+          discount: 0,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al quitar el descuento');
+      }
+
+      // Refrescar productos desde la base de datos
+      const productsRes = await fetch('/api/products');
+      const updatedProducts = await productsRes.json();
+      setProducts(updatedProducts);
+
+      toast({
+        title: "Descuento eliminado",
+        description: `Se ha quitado el descuento del producto "${product.name}"`,
+      });
+    } catch (error) {
+      console.error('Error al quitar descuento:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Hubo un error al quitar el descuento',
+        variant: 'destructive',
+      });
+    }
   }
 
   // Renderizar el componente
@@ -773,6 +976,12 @@ export default function ProductsPage() {
                                 <Tag className="mr-2 h-4 w-4" />
                                 Aplicar descuento
                               </DropdownMenuItem>
+                              {product.discount > 0 && (
+                                <DropdownMenuItem onClick={() => removeDiscount(product)} className="text-orange-600">
+                                  <Tag className="mr-2 h-4 w-4" />
+                                  Quitar descuento
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => confirmDeleteProduct(product)} className="text-red-600">
                                 <Trash className="mr-2 h-4 w-4" />
@@ -850,26 +1059,8 @@ export default function ProductsPage() {
                         {promotionSortField !== "discountValue" && <ArrowUpDown className="ml-1 h-4 w-4" />}
                       </div>
                     </th>
-                    <th
-                      className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
-                      onClick={() => handlePromotionSort("durationType")}
-                    >
-                      <div className="flex items-center">
-                        Tipo de duración
-                        {promotionSortField === "durationType" && (
-                          <span className="ml-1">
-                            {promotionSortDirection === "asc" ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </span>
-                        )}
-                        {promotionSortField !== "durationType" && <ArrowUpDown className="ml-1 h-4 w-4" />}
-                      </div>
-                    </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer">
-                      <div className="flex items-center">Usos</div>
+                      <div className="flex items-center">Usos / Fechas</div>
                     </th>
                     <th
                       className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
@@ -905,13 +1096,21 @@ export default function ProductsPage() {
                         <td className="px-4 py-4 text-sm font-medium text-gray-900">{promotion.couponCode}</td>
                         <td className="px-4 py-4 text-sm text-gray-500">
                           {promotion.discountValue}
-                          {promotion.discountType === "percentage" ? "%" : "$"}
+                          {promotion.discountType === "PORCENTAJE" ? "%" : "$"}
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-500">{promotion.durationType}</td>
+
                         <td className="px-4 py-4 text-sm text-gray-500">
-                          {promotion.durationType === "date"
-                            ? "-"
-                            : `${promotion.currentUsage} / ${promotion.maxUsage}`}
+                          {promotion.maxUsage ? (
+                            `0 / ${promotion.maxUsage}`
+                          ) : promotion.startDate && promotion.endDate ? (
+                            new Date(promotion.startDate).toLocaleDateString('es-VE', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })
+                          ) : (
+                            "-"
+                          )}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-500">
                           {promotion.active ? (
@@ -1186,8 +1385,9 @@ export default function ProductsPage() {
                     <SelectValue placeholder="Tipo de descuento" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="percentage">Porcentaje</SelectItem>
-                    <SelectItem value="fixed">Valor fijo</SelectItem>
+                    <SelectItem value="PORCENTAJE">Porcentaje</SelectItem>
+                    <SelectItem value="FIJO">Valor fijo</SelectItem>
+                    <SelectItem value="ENVIO_GRATIS">Envío gratis</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1195,61 +1395,38 @@ export default function ProductsPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="durationType">Tipo de duración</Label>
-                <Select
-                  value={promotionForm.durationType}
-                  onValueChange={(value) => setPromotionForm({ ...promotionForm, durationType: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tipo de duración" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="date">Fecha</SelectItem>
-                    <SelectItem value="usage">Usos</SelectItem>
-                    <SelectItem value="both">Ambos</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="startDate">Fecha de inicio</Label>
+                <Input
+                  id="startDate"
+                  name="startDate"
+                  type="date"
+                  value={promotionForm.startDate}
+                  onChange={handlePromotionFormChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">Fecha de fin</Label>
+                <Input
+                  id="endDate"
+                  name="endDate"
+                  type="date"
+                  value={promotionForm.endDate}
+                  onChange={handlePromotionFormChange}
+                />
               </div>
             </div>
 
-            {promotionForm.durationType === "date" || promotionForm.durationType === "both" ? (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Fecha de inicio</Label>
-                  <Input
-                    id="startDate"
-                    name="startDate"
-                    type="date"
-                    value={promotionForm.startDate}
-                    onChange={handlePromotionFormChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">Fecha de fin</Label>
-                  <Input
-                    id="endDate"
-                    name="endDate"
-                    type="date"
-                    value={promotionForm.endDate}
-                    onChange={handlePromotionFormChange}
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            {promotionForm.durationType === "usage" || promotionForm.durationType === "both" ? (
-              <div className="space-y-2">
-                <Label htmlFor="maxUsage">Máximo de usos</Label>
-                <Input
-                  id="maxUsage"
-                  name="maxUsage"
-                  type="number"
-                  value={promotionForm.maxUsage}
-                  onChange={handlePromotionFormChange}
-                  placeholder="Máximo de usos"
-                />
-              </div>
-            ) : null}
+            <div className="space-y-2">
+              <Label htmlFor="maxUsage">Máximo de usos</Label>
+              <Input
+                id="maxUsage"
+                name="maxUsage"
+                type="number"
+                value={promotionForm.maxUsage}
+                onChange={handlePromotionFormChange}
+                placeholder="Máximo de usos"
+              />
+            </div>
 
             <div className="flex items-center space-x-2">
               <Checkbox id="isActive" checked={promotionForm.isActive} onCheckedChange={handlePromotionActiveChange} />
@@ -1284,41 +1461,6 @@ export default function ProductsPage() {
                 value={discountForm.discountPercentage}
                 onChange={handleDiscountFormChange}
                 placeholder="0"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="discountStartDate">Fecha de inicio</Label>
-                <Input
-                  id="discountStartDate"
-                  name="startDate"
-                  type="date"
-                  value={discountForm.startDate}
-                  onChange={handleDiscountFormChange}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="discountEndDate">Fecha de fin</Label>
-                <Input
-                  id="discountEndDate"
-                  name="endDate"
-                  type="date"
-                  value={discountForm.endDate}
-                  onChange={handleDiscountFormChange}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="discountDescription">Descripción del descuento</Label>
-              <Textarea
-                id="discountDescription"
-                name="description"
-                value={discountForm.description}
-                onChange={handleDiscountFormChange}
-                placeholder="Descripción del descuento"
-                rows={3}
               />
             </div>
           </div>

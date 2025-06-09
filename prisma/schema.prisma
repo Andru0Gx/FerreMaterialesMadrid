@@ -116,17 +116,13 @@ model Admin {
 
 model Promotion {
   id                  String         @id @default(uuid())
-  name                String
-  description         String?
-  discountType        DiscountType
-  discountValue       Float
-  startDate          DateTime       @map("start_date")
-  endDate            DateTime       @map("end_date")
-  applicableCategories Json?        @map("applicable_categories")
-  applicableProducts  Json?        @map("applicable_products")
-  minimumPurchase     Float         @map("minimum_purchase")
   couponCode         String?       @unique @map("coupon_code")
-  active             Boolean       @default(true)
+  discountType        DiscountType
+  discountValue       Float          @map("discount_value")
+  startDate           DateTime?      @map("start_date")
+  endDate             DateTime?      @map("end_date")
+  maxUsage            Int?           @map("max_usage")
+  active              Boolean        @default(true)
 
   @@map("promotions")
 }
@@ -163,8 +159,7 @@ enum PaymentStatus {
 }
 
 enum DiscountType {
-  PERCENTAGE
-  FIXED
-  BUY_X_GET_Y
-  FREE_SHIPPING
+  PORCENTAJE
+  FIJO
+  ENVIO_GRATIS
 }
