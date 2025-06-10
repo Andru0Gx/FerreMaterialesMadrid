@@ -103,15 +103,16 @@ model OrderItem {
 }
 
 model Admin {
-  id          String    @id @default(uuid())
+  id          String      @id @default(uuid())
   name        String
-  email       String    @unique
+  email       String      @unique
+  password    String
   role        AdminRole
-  permissions Json
-  phone       String?
   status      AdminStatus @default(ACTIVE)
+  phone       String?
 
   @@map("admins")
+  @@index([email])
 }
 
 model Promotion {
