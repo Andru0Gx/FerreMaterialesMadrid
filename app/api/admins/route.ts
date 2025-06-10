@@ -137,16 +137,17 @@ export async function POST(request: Request) {
         } as const
 
         // Crear el administrador
+        const createData = {
+            name,
+            email,
+            password: hashedPassword,
+            role: role as AdminRole,
+            phone,
+            status: status as AdminStatus
+        } as unknown as Prisma.AdminCreateInput
+
         const admin = await prisma.admin.create({
-            // @ts-ignore - Prisma types are not correctly handling the password field
-            data: {
-                name,
-                email,
-                password: hashedPassword,
-                role: role as AdminRole,
-                phone,
-                status: status as AdminStatus
-            },
+            data: createData,
             select
         })
 
