@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { AdminRole, AdminStatus, Prisma } from '@prisma/client'
-import crypto from 'crypto'
+import crypto from 'crypto' //Para hashear la contraseña
 
 // Función para hashear la contraseña
 function hashPassword(password: string): string {
