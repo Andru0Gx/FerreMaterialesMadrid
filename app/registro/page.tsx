@@ -33,6 +33,7 @@ const formSchema = z
     address: z.string().min(5, {
       message: "La dirección debe tener al menos 5 caracteres.",
     }),
+    city: z.string(),
     zip: z.string().min(4, {
       message: "El código postal debe tener al menos 4 caracteres.",
     }),
@@ -58,6 +59,7 @@ export default function RegisterPage() {
       confirmPassword: "",
       phone: "",
       address: "",
+      city: "Maturín",
       zip: "",
     },
   })
@@ -66,20 +68,37 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      // Simulación de registro
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: values.name,
+          email: values.email,
+          password: values.password,
+          phone: values.phone,
+          address: values.address,
+          city: values.city,
+          zip: values.zip
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al registrar usuario")
+      }
 
       toast({
-        title: "Registro exitoso",
-        description: "Tu cuenta ha sido creada correctamente.",
+        title: "¡Registro exitoso!",
+        description: "Tu cuenta ha sido creada correctamente."
       })
 
       router.push("/login")
     } catch (error) {
       toast({
         title: "Error en el registro",
-        description: "Ha ocurrido un error al crear tu cuenta. Por favor, inténtalo de nuevo.",
-        variant: "destructive",
+        description: error instanceof Error ? error.message : "Error al registrar usuario",
+        variant: "destructive"
       })
     } finally {
       setIsLoading(false)
@@ -218,59 +237,60 @@ export default function RegisterPage() {
                   )}
                 />
 
-                <div className="pt-4">
-                  <h3 className="text-lg font-medium mb-4">Dirección de envío</h3>
-
-                  <FormField
-                    control={form.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Dirección</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                            <Input className="pl-10" placeholder="Calle, número, piso, puerta" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid gap-4 md:grid-cols-2 mt-4">
-                    {/* Ciudad field - Wrapped in FormField */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Dirección de envío</h3>
+                  <div className="grid gap-4">
                     <FormField
                       control={form.control}
-                      name="zip" // Using 'zip' as a placeholder, though it's not a form-controlled field for "Ciudad"
-                      // This field is purely for display, so `render` is just for structure.
-                      render={() => (
-                        <FormItem>
-                          <FormLabel>Ciudad</FormLabel>
-                          <FormControl>
-                            <div className="mt-1">
-                              <Input value="Maturín" disabled className="bg-gray-50" />
-                            </div>
-                          </FormControl>
-                          <FormDescription className="text-xs text-gray-500 mt-1">Actualmente solo enviamos a Maturín</FormDescription>
-                          {/* No FormMessage here as it's not a user-controlled field */}
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="zip"
+                      name="address"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Código postal</FormLabel>
+                          <FormLabel>Dirección</FormLabel>
                           <FormControl>
-                            <Input placeholder="6201" {...field} />
+                            <div className="relative">
+                              <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                              <Input className="pl-10" placeholder="Calle, número, piso, etc." {...field} />
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="city"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>Ciudad</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                <Input value="Maturín" disabled className="pl-10 bg-gray-50" />
+                              </div>
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Actualmente solo enviamos a Maturín
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="zip"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Código postal</FormLabel>
+                            <FormControl>
+                              <Input placeholder="6201" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
