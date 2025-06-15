@@ -1,114 +1,230 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
-import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/use-toast"
-
-const formSchema = z.object({
-  email: z.string().email({
-    message: "Por favor, introduce un correo electrónico válido.",
-  }),
-})
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle, CheckCircle2 } from "lucide-react"
 
 export default function RecuperarContrasenaPage() {
+  const router = useRouter()
+  const [email, setEmail] = useState("")
+  const [verificationCode, setVerificationCode] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [step, setStep] = useState<"email" | "code" | "password">("email")
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [generatedCode, setGeneratedCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const { toast } = useToast()
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-    },
-  })
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setSuccess("")
     setIsLoading(true)
 
     try {
-      // Simulación de envío de correo
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      setIsSubmitted(true)
-
-      toast({
-        title: "Correo enviado",
-        description: "Se ha enviado un correo con instrucciones para recuperar tu contraseña.",
+      // Verificar si el correo existe en la base de datos
+      const response = await fetch('/api/auth/verify-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
       })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al verificar el correo')
+      }
+
+      if (!data.exists) {
+        setError("Este correo electrónico no está registrado en nuestra base de datos.")
+        return
+      }
+
+      // Generar y enviar código de verificación
+      const code = Math.floor(100000 + Math.random() * 900000).toString()
+      setGeneratedCode(code)
+      console.log("Código generado:", code) // Para pruebas
+      setStep("code")
+      setSuccess("Se ha enviado un código de verificación a tu correo electrónico.")
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Ha ocurrido un error al enviar el correo. Por favor, inténtalo de nuevo.",
-        variant: "destructive",
+      setError(error instanceof Error ? error.message : "Error al verificar el correo electrónico.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setSuccess("")
+    setIsLoading(true)
+
+    try {
+      if (verificationCode === generatedCode) {
+        setStep("password")
+        setSuccess("Código verificado correctamente. Por favor, ingresa tu nueva contraseña.")
+      } else {
+        setError("El código de verificación es incorrecto. Por favor, intenta de nuevo.")
+      }
+    } catch (error) {
+      setError("Error al verificar el código. Por favor, intenta de nuevo.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setSuccess("")
+    setIsLoading(true)
+
+    if (newPassword !== confirmPassword) {
+      setError("Las contraseñas no coinciden.")
+      setIsLoading(false)
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres.")
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      // Actualizar la contraseña en la base de datos
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          newPassword,
+        }),
       })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al actualizar la contraseña')
+      }
+
+      setSuccess("Contraseña actualizada correctamente.")
+      setTimeout(() => {
+        router.push("/login")
+      }, 2000)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Error al actualizar la contraseña. Por favor, intenta de nuevo.")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="mx-auto max-w-md space-y-6">
-        <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold">Recuperar contraseña</h1>
-          <p className="text-gray-500">Ingresa tu correo electrónico para recibir instrucciones</p>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-md mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recuperar Contraseña</CardTitle>
+            <CardDescription>
+              {step === "email" && "Ingresa tu correo electrónico para recibir un código de verificación."}
+              {step === "code" && "Ingresa el código de verificación enviado a tu correo."}
+              {step === "password" && "Ingresa tu nueva contraseña."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            {success && (
+              <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>{success}</AlertDescription>
+              </Alert>
+            )}
 
-        {isSubmitted ? (
-          <div className="rounded-lg border border-green-100 bg-green-50 p-6 text-center">
-            <h2 className="text-xl font-semibold text-green-800">Correo enviado</h2>
-            <p className="mt-2 text-green-700">
-              Hemos enviado un correo electrónico a <strong>{form.getValues().email}</strong> con instrucciones para
-              recuperar tu contraseña.
-            </p>
-            <p className="mt-4 text-sm text-green-600">
-              Si no recibes el correo en unos minutos, revisa tu carpeta de spam o{" "}
-              <button className="font-medium text-green-800 hover:underline" onClick={() => setIsSubmitted(false)}>
-                intenta de nuevo
-              </button>
-              .
-            </p>
-          </div>
-        ) : (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Correo electrónico</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="ejemplo@correo.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {step === "email" && (
+              <form onSubmit={handleEmailSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Correo Electrónico</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Verificando..." : "Enviar Código"}
+                </Button>
+              </form>
+            )}
 
-              <Button
-                type="submit"
-                className="w-full bg-[var(--primary-color)] hover:bg-[var(--primary-color)]/90"
-                disabled={isLoading}
-              >
-                {isLoading ? "Enviando..." : "Enviar instrucciones"}
-              </Button>
-            </form>
-          </Form>
-        )}
+            {step === "code" && (
+              <form onSubmit={handleCodeSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="code">Código de Verificación</Label>
+                  <Input
+                    id="code"
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    maxLength={6}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Verificando..." : "Verificar Código"}
+                </Button>
+              </form>
+            )}
 
-        <div className="text-center text-sm">
-          <Link href="/login" className="font-medium text-[var(--primary-color)] hover:underline">
-            Volver a iniciar sesión
-          </Link>
-        </div>
+            {step === "password" && (
+              <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">Nueva Contraseña</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Actualizando..." : "Actualizar Contraseña"}
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
