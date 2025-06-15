@@ -108,20 +108,11 @@ const initialAddresses = [
 ]
 
 export default function MiCuentaPage() {
-  // Crear un usuario de cliente para pruebas
-  const clientUser = {
-    id: "client-1",
-    name: "Cliente Ejemplo",
-    email: "cliente@ejemplo.com",
-    password: "Password123",
-    role: "customer",
-    phone: "+34612345678",
-  }
-
   const { user, logout, updateUser } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("perfil")
+  const [addresses, setAddresses] = useState<Address[]>(initialAddresses)
 
   // Estados para formularios
   const [formData, setFormData] = useState<FormData>({
@@ -140,7 +131,6 @@ export default function MiCuentaPage() {
     confirm: false,
   })
 
-  const [addresses, setAddresses] = useState<Address[]>(initialAddresses)
   const [editingAddress, setEditingAddress] = useState<string | null>(null)
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false)
   const [addressFormData, setAddressFormData] = useState<AddressFormData>({
@@ -151,12 +141,25 @@ export default function MiCuentaPage() {
     zip: "",
   })
 
-  // Si no hay usuario, redirigir al login
+  const loadAddresses = async () => {
+    try {
+      const response = await fetch(`/api/users/${user?.id}/addresses`)
+      if (response.ok) {
+        const data = await response.json()
+        setAddresses(data)
+      }
+    } catch (error) {
+      console.error("Error cargando direcciones:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las direcciones.",
+        variant: "destructive",
+      })
+    }
+  }
+
   useEffect(() => {
-    if (!user) {
-      router.push("/login?redirect=/mi-cuenta")
-    } else {
-      // Cargar datos del usuario al montar el componente
+    if (user) {
       setFormData({
         name: user.name || "",
         email: user.email || "",
@@ -166,18 +169,17 @@ export default function MiCuentaPage() {
         confirmPassword: "",
         isSubscribed: user.isSubscribed || false,
       })
-    }
-  }, [user, router])
-
-  // Cargar direcciones cuando el usuario está disponible
-  useEffect(() => {
-    if (user) {
       loadAddresses()
     }
   }, [user])
 
+  // Si no hay usuario, mostrar pantalla de carga
   if (!user) {
-    return null
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    )
   }
 
   const handleLogout = () => {
@@ -330,22 +332,6 @@ export default function MiCuentaPage() {
   }
 
   // Funciones para gestionar direcciones
-  const loadAddresses = async () => {
-    try {
-      const response = await fetch(`/api/users/${user.id}/addresses`)
-      if (!response.ok) throw new Error('Error al cargar las direcciones')
-      const data = await response.json()
-      setAddresses(data)
-    } catch (error) {
-      console.error('Error:', error)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las direcciones",
-        variant: "destructive"
-      })
-    }
-  }
-
   const handleAddAddress = () => {
     setAddressFormData({
       id: "",
