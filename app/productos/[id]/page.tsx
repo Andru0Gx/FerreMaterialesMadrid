@@ -69,6 +69,10 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     router.push("/carrito")
   }
 
+  const handleAddedToCart = () => {
+    setQuantity(1)
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col px-10 py-8">
@@ -131,7 +135,12 @@ export default function ProductPage({ params }: { params: { id: string } }) {
             <ProductQuantity initialQuantity={1} onChange={handleQuantityChange} />
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <AddToCartButton product={product} quantity={quantity} className="flex-1" />
+              <AddToCartButton
+                product={product}
+                quantity={quantity}
+                className="flex-1"
+                onAddToCart={handleAddedToCart}
+              />
               <Button variant="outline" className="flex-1" onClick={handleBuyNow}>
                 Comprar ahora
               </Button>

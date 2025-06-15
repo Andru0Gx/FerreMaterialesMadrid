@@ -43,17 +43,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (item: CartItem) => {
     setCart((prevCart) => {
-      const existingItemIndex = prevCart.findIndex((cartItem) => cartItem.id === item.id)
+      const existingItem = prevCart.find((cartItem) => cartItem.id === item.id)
 
-      if (existingItemIndex !== -1) {
-        // Si el producto ya está en el carrito, actualizamos la cantidad
-        const updatedCart = [...prevCart]
-        updatedCart[existingItemIndex].quantity += item.quantity
-        return updatedCart
-      } else {
-        // Si el producto no está en el carrito, lo añadimos
-        return [...prevCart, item]
+      if (existingItem) {
+        // Si el producto ya está en el carrito
+        if (item.quantity > 1) {
+          // Si se especifica una cantidad, la usamos
+          return prevCart.map((cartItem) =>
+            cartItem.id === item.id
+              ? { ...cartItem, quantity: item.quantity }
+              : cartItem
+          )
+        } else {
+          // Si no se especifica cantidad, incrementamos en 1
+          return prevCart.map((cartItem) =>
+            cartItem.id === item.id
+              ? { ...cartItem, quantity: cartItem.quantity + 1 }
+              : cartItem
+          )
+        }
       }
+
+      // Si el producto no está en el carrito, lo añadimos con su cantidad
+      return [...prevCart, item]
     })
   }
 

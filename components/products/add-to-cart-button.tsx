@@ -11,9 +11,10 @@ interface AddToCartButtonProps {
   product: Product
   quantity: number
   className?: string
+  onAddToCart?: () => void
 }
 
-export default function AddToCartButton({ product, quantity, className }: AddToCartButtonProps) {
+export default function AddToCartButton({ product, quantity, className, onAddToCart }: AddToCartButtonProps) {
   const { addToCart } = useCart()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -37,6 +38,9 @@ export default function AddToCartButton({ product, quantity, className }: AddToC
         description: `${product.name} ha sido añadido al carrito.`,
         duration: 3000,
       })
+
+      // Llamar al callback si existe
+      onAddToCart?.()
 
       setIsLoading(false)
     }, 300)
