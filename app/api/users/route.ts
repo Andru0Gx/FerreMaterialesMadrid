@@ -11,9 +11,6 @@ export async function GET(request: Request) {
                 phone: true,
                 isActive: true,
                 addresses: {
-                    where: {
-                        isDefault: true
-                    },
                     select: {
                         address: true,
                         city: true

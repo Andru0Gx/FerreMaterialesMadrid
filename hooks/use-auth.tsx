@@ -9,88 +9,76 @@ export interface User {
   email: string
   role: "CUSTOMER" | "ADMIN" | "SUPER_ADMIN"
   isActive: boolean
+  phone?: string
+  isSubscribed: boolean
 }
 
 interface AuthContextType {
   user: User | null
-  isAdmin: boolean
-  isSuperAdmin: boolean
-  login: (email: string, password: string) => Promise<boolean>
+  login: (email: string, password: string) => Promise<void>
   logout: () => void
+  updateUser: (userData: Partial<User>) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-interface AuthProviderProps {
-  children: React.ReactNode
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
 
-  // Check if user is logged in on mount
   useEffect(() => {
+    // Verificar si hay un usuario en localStorage al cargar
     const storedUser = localStorage.getItem("user")
     if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser))
-      } catch (error) {
-        console.error("Error parsing user from localStorage:", error)
-      }
+      setUser(JSON.parse(storedUser))
     }
-    setLoading(false)
   }, [])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string) => {
     try {
-      console.log('Attempting login with:', { email, password })
-
       const response = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
       })
 
-      const data = await response.json()
-      console.log('Login response:', data)
-
       if (!response.ok) {
-        throw new Error(data.message || "Error al iniciar sesión")
+        const error = await response.json()
+        throw new Error(error.message || "Error al iniciar sesión")
       }
 
-      const { user } = data
-      setUser(user)
-      localStorage.setItem("user", JSON.stringify(user))
-      return true
+      const data = await response.json()
+      const userData = data.user
+
+      setUser(userData)
+      localStorage.setItem("user", JSON.stringify(userData))
     } catch (error) {
-      console.error("Login error:", error)
       throw error
     }
   }
 
   const logout = () => {
-    const wasAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"
-
     setUser(null)
     localStorage.removeItem("user")
-
-    // If user was admin, redirect to home page
-    // Otherwise, stay on current page
-    if (wasAdmin) {
+    if (pathname !== "/") {
       router.push("/")
     }
-    // For regular users, they stay on the current page
   }
 
-  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"
-  const isSuperAdmin = user?.role === "SUPER_ADMIN"
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData }
+      setUser(updatedUser)
+      localStorage.setItem("user", JSON.stringify(updatedUser))
+    }
+  }
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isSuperAdmin, login, logout }}>
-      {!loading && children}
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
+      {children}
     </AuthContext.Provider>
   )
 }

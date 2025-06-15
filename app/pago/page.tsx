@@ -40,8 +40,7 @@ const userAddresses = [
     address: "Calle Principal 123",
     city: "Maturín",
     state: "Monagas",
-    zip: "6201",
-    isDefault: true,
+    zip: "6201"
   },
   {
     id: "addr-2",
@@ -49,9 +48,8 @@ const userAddresses = [
     address: "Avenida Comercial 456",
     city: "Maturín",
     state: "Monagas",
-    zip: "6201",
-    isDefault: false,
-  },
+    zip: "6201"
+  }
 ]
 
 export default function CheckoutPage() {
@@ -179,11 +177,6 @@ export default function CheckoutPage() {
                             <MapPin className="w-4 h-4 mr-2" />
                             <div>
                               <span className="font-medium">{address.name}</span>
-                              {address.isDefault && (
-                                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                                  Predeterminada
-                                </span>
-                              )}
                               <div className="text-sm text-gray-500">
                                 {address.address}, {address.city}
                               </div>

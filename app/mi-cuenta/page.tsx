@@ -35,6 +35,32 @@ import {
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
+interface Address {
+  id: string
+  name: string
+  address: string
+  city: string
+  zip: string
+}
+
+interface FormData {
+  name: string
+  email: string
+  phone: string
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+  isSubscribed: boolean
+}
+
+interface AddressFormData {
+  id: string
+  name: string
+  address: string
+  city: string
+  zip: string
+}
+
 // Datos de ejemplo para pedidos
 const clientOrders = [
   {
@@ -70,18 +96,14 @@ const initialAddresses = [
     name: "Casa",
     address: "Calle Principal 123",
     city: "Madrid",
-    state: "Madrid",
     zip: "28001",
-    isDefault: true,
   },
   {
     id: "addr-2",
     name: "Trabajo",
     address: "Avenida Comercial 456",
     city: "Madrid",
-    state: "Madrid",
     zip: "28045",
-    isDefault: false,
   },
 ]
 
@@ -102,13 +124,14 @@ export default function MiCuentaPage() {
   const [activeTab, setActiveTab] = useState("perfil")
 
   // Estados para formularios
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
     phone: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
+    isSubscribed: false,
   })
 
   const [showPassword, setShowPassword] = useState({
@@ -117,17 +140,15 @@ export default function MiCuentaPage() {
     confirm: false,
   })
 
-  const [addresses, setAddresses] = useState(initialAddresses)
-  const [editingAddress, setEditingAddress] = useState(null)
+  const [addresses, setAddresses] = useState<Address[]>(initialAddresses)
+  const [editingAddress, setEditingAddress] = useState<string | null>(null)
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false)
-  const [addressFormData, setAddressFormData] = useState({
+  const [addressFormData, setAddressFormData] = useState<AddressFormData>({
     id: "",
     name: "",
     address: "",
     city: "",
-    state: "",
     zip: "",
-    isDefault: false,
   })
 
   // Si no hay usuario, redirigir al login
@@ -143,9 +164,17 @@ export default function MiCuentaPage() {
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
+        isSubscribed: user.isSubscribed || false,
       })
     }
   }, [user, router])
+
+  // Cargar direcciones cuando el usuario está disponible
+  useEffect(() => {
+    if (user) {
+      loadAddresses()
+    }
+  }, [user])
 
   if (!user) {
     return null
@@ -160,15 +189,15 @@ export default function MiCuentaPage() {
     router.push("/")
   }
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }))
   }
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     // Validar campos
     if (!formData.name.trim()) {
       toast({
@@ -188,21 +217,43 @@ export default function MiCuentaPage() {
       return
     }
 
-    // Actualizar datos del usuario
-    updateUser({
-      ...user,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-    })
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          isSubscribed: formData.isSubscribed
+        })
+      })
 
-    toast({
-      title: "Perfil actualizado",
-      description: "Tus datos han sido actualizados correctamente",
-    })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Error al actualizar el perfil')
+      }
+
+      const updatedUser = await response.json()
+      updateUser(updatedUser)
+
+      toast({
+        title: "Perfil actualizado",
+        description: "Tus datos han sido actualizados correctamente",
+      })
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al actualizar el perfil",
+        variant: "destructive"
+      })
+    }
   }
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     // Validar contraseñas
     if (!formData.currentPassword) {
       toast({
@@ -231,22 +282,47 @@ export default function MiCuentaPage() {
       return
     }
 
-    // Simular cambio de contraseña
-    toast({
-      title: "Contraseña actualizada",
-      description: "Tu contraseña ha sido actualizada correctamente",
-    })
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword
+        })
+      })
 
-    // Limpiar campos de contraseña
-    setFormData((prev) => ({
-      ...prev,
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    }))
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al cambiar la contraseña')
+      }
+
+      // Limpiar campos de contraseña
+      setFormData(prev => ({
+        ...prev,
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      }))
+
+      toast({
+        title: "Contraseña actualizada",
+        description: data.message || "Tu contraseña ha sido actualizada correctamente",
+      })
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al cambiar la contraseña",
+        variant: "destructive"
+      })
+    }
   }
 
-  const togglePasswordVisibility = (field) => {
+  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
     setShowPassword((prev) => ({
       ...prev,
       [field]: !prev[field],
@@ -254,57 +330,67 @@ export default function MiCuentaPage() {
   }
 
   // Funciones para gestionar direcciones
+  const loadAddresses = async () => {
+    try {
+      const response = await fetch(`/api/users/${user.id}/addresses`)
+      if (!response.ok) throw new Error('Error al cargar las direcciones')
+      const data = await response.json()
+      setAddresses(data)
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las direcciones",
+        variant: "destructive"
+      })
+    }
+  }
+
   const handleAddAddress = () => {
-    setEditingAddress(null)
     setAddressFormData({
-      id: `addr-${Date.now()}`,
+      id: "",
       name: "",
       address: "",
       city: "",
-      state: "",
-      zip: "",
-      isDefault: addresses.length === 0, // Primera dirección es la predeterminada
+      zip: ""
     })
+    setEditingAddress(null)
     setIsAddressDialogOpen(true)
   }
 
-  const handleEditAddress = (address) => {
+  const handleEditAddress = (address: Address) => {
+    setAddressFormData(address)
     setEditingAddress(address.id)
-    setAddressFormData({ ...address })
     setIsAddressDialogOpen(true)
   }
 
-  const handleDeleteAddress = (addressId) => {
-    const updatedAddresses = addresses.filter((addr) => addr.id !== addressId)
+  const handleDeleteAddress = async (addressId: string) => {
+    try {
+      const response = await fetch(`/api/users/${user.id}/addresses?addressId=${addressId}`, {
+        method: 'DELETE'
+      })
 
-    // Si eliminamos la dirección predeterminada, establecer la primera como predeterminada
-    if (addresses.find((addr) => addr.id === addressId)?.isDefault && updatedAddresses.length > 0) {
-      updatedAddresses[0].isDefault = true
+      if (!response.ok) {
+        throw new Error('Error al eliminar la dirección')
+      }
+
+      await loadAddresses()
+
+      toast({
+        title: "Dirección eliminada",
+        description: "La dirección ha sido eliminada correctamente",
+      })
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la dirección",
+        variant: "destructive"
+      })
     }
-
-    setAddresses(updatedAddresses)
-
-    toast({
-      title: "Dirección eliminada",
-      description: "La dirección ha sido eliminada correctamente",
-    })
   }
 
-  const handleSetDefaultAddress = (addressId) => {
-    const updatedAddresses = addresses.map((addr) => ({
-      ...addr,
-      isDefault: addr.id === addressId,
-    }))
-
-    setAddresses(updatedAddresses)
-
-    toast({
-      title: "Dirección predeterminada",
-      description: "Se ha actualizado tu dirección predeterminada",
-    })
-  }
-
-  const handleAddressInputChange = (e) => {
+  const handleAddressInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
     setAddressFormData((prev) => ({
       ...prev,
@@ -312,61 +398,67 @@ export default function MiCuentaPage() {
     }))
   }
 
-  const handleSaveAddress = () => {
-    // Validar campos
-    if (
-      !addressFormData.name.trim() ||
-      !addressFormData.address.trim() ||
-      !addressFormData.city.trim() ||
-      !addressFormData.state.trim() ||
-      !addressFormData.zip.trim()
-    ) {
+  const handleSaveAddress = async () => {
+    try {
+      // Validar campos
+      if (!addressFormData.name || !addressFormData.address || !addressFormData.city || !addressFormData.zip) {
+        toast({
+          title: "Error",
+          description: "Todos los campos son obligatorios",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const method = editingAddress ? 'PUT' : 'POST'
+      const response = await fetch(`/api/users/${user.id}/addresses`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: editingAddress ? addressFormData.id : undefined,
+          name: addressFormData.name,
+          address: addressFormData.address,
+          city: addressFormData.city,
+          zip: addressFormData.zip
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Error al guardar la dirección')
+      }
+
+      await loadAddresses()
+      setIsAddressDialogOpen(false)
+      setAddressFormData({
+        id: "",
+        name: "",
+        address: "",
+        city: "",
+        zip: ""
+      })
+
+      toast({
+        title: editingAddress ? "Dirección actualizada" : "Dirección agregada",
+        description: editingAddress
+          ? "La dirección ha sido actualizada correctamente"
+          : "La dirección ha sido agregada correctamente",
+      })
+    } catch (error) {
+      console.error('Error:', error)
       toast({
         title: "Error",
-        description: "Todos los campos son obligatorios",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (editingAddress) {
-      // Actualizar dirección existente
-      const updatedAddresses = addresses.map((addr) => {
-        if (addr.id === editingAddress) {
-          return addressFormData
-        }
-
-        // Si la nueva dirección es predeterminada, actualizar las demás
-        if (addressFormData.isDefault && addr.id !== editingAddress) {
-          return { ...addr, isDefault: false }
-        }
-
-        return addr
-      })
-
-      setAddresses(updatedAddresses)
-      toast({
-        title: "Dirección actualizada",
-        description: "La dirección ha sido actualizada correctamente",
-      })
-    } else {
-      // Añadir nueva dirección
-      const newAddresses = addressFormData.isDefault
-        ? addresses.map((addr) => ({ ...addr, isDefault: false })).concat({ ...addressFormData })
-        : [...addresses, addressFormData]
-
-      setAddresses(newAddresses)
-      toast({
-        title: "Dirección añadida",
-        description: "La dirección ha sido añadida correctamente",
+        description: error instanceof Error ? error.message : "No se pudo guardar la dirección",
+        variant: "destructive"
       })
     }
-
-    setIsAddressDialogOpen(false)
   }
 
   // Formatear fecha
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString)
       return format(date, "d 'de' MMMM, yyyy", { locale: es })
@@ -376,7 +468,7 @@ export default function MiCuentaPage() {
   }
 
   // Función para obtener el color de badge según el estado
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
         return "bg-green-100 text-green-800"
@@ -481,6 +573,19 @@ export default function MiCuentaPage() {
                   <div className="space-y-2">
                     <Label htmlFor="phone">Teléfono</Label>
                     <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange} />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="notifications"
+                      name="isSubscribed"
+                      className="h-4 w-4 rounded border-gray-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]"
+                      checked={formData.isSubscribed}
+                      onChange={handleInputChange}
+                    />
+                    <Label htmlFor="notifications" className="text-sm font-normal">
+                      Recibir notificaciones sobre ofertas y novedades
+                    </Label>
                   </div>
                 </div>
 
@@ -648,15 +753,10 @@ export default function MiCuentaPage() {
                         <div>
                           <div className="flex items-center">
                             <p className="font-medium">{address.name}</p>
-                            {address.isDefault && (
-                              <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
-                                Predeterminada
-                              </span>
-                            )}
                           </div>
                           <p className="text-sm text-gray-500">{address.address}</p>
                           <p className="text-sm text-gray-500">
-                            {address.city}, {address.state} {address.zip}
+                            {address.city} {address.zip}
                           </p>
                         </div>
                         <div className="flex gap-2">
@@ -664,23 +764,15 @@ export default function MiCuentaPage() {
                             <PencilLine className="h-4 w-4" />
                             <span className="sr-only md:not-sr-only md:ml-2">Editar</span>
                           </Button>
-                          {!address.isDefault && (
-                            <Button variant="outline" size="sm" onClick={() => handleSetDefaultAddress(address.id)}>
-                              <Check className="h-4 w-4" />
-                              <span className="sr-only md:not-sr-only md:ml-2">Predeterminada</span>
-                            </Button>
-                          )}
-                          {!address.isDefault && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => handleDeleteAddress(address.id)}
-                            >
-                              <Trash className="h-4 w-4" />
-                              <span className="sr-only md:not-sr-only md:ml-2">Eliminar</span>
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => handleDeleteAddress(address.id)}
+                          >
+                            <Trash className="h-4 w-4" />
+                            <span className="sr-only md:not-sr-only md:ml-2">Eliminar</span>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -752,31 +844,9 @@ export default function MiCuentaPage() {
                 <Input id="address-city" name="city" value={addressFormData.city} onChange={handleAddressInputChange} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address-state">Provincia</Label>
-                <Input
-                  id="address-state"
-                  name="state"
-                  value={addressFormData.state}
-                  onChange={handleAddressInputChange}
-                />
+                <Label htmlFor="address-zip">Código postal</Label>
+                <Input id="address-zip" name="zip" value={addressFormData.zip} onChange={handleAddressInputChange} />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address-zip">Código postal</Label>
-              <Input id="address-zip" name="zip" value={addressFormData.zip} onChange={handleAddressInputChange} />
-            </div>
-            <div className="flex items-center space-x-2 pt-2">
-              <input
-                type="checkbox"
-                id="address-default"
-                name="isDefault"
-                className="h-4 w-4 rounded border-gray-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]"
-                checked={addressFormData.isDefault}
-                onChange={handleAddressInputChange}
-              />
-              <Label htmlFor="address-default" className="text-sm font-normal">
-                Establecer como dirección predeterminada
-              </Label>
             </div>
           </div>
           <DialogFooter>

@@ -35,7 +35,6 @@ model Address {
   address   String
   city      String
   zip       String
-  isDefault Boolean  @default(false) @map("is_default")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders    Order[]
 
@@ -78,8 +77,6 @@ model Order {
   email           String?
   paymentStatus   PaymentStatus @default(PENDING) @map("payment_status")
   shippingAddressId String?   @map("shipping_address_id")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
   user            User?       @relation(fields: [userId], references: [id])
   shippingAddress Address?    @relation(fields: [shippingAddressId], references: [id])
   items           OrderItem[]
