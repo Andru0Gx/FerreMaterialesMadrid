@@ -7,7 +7,8 @@ export interface User {
   id: string
   name: string
   email: string
-  role: "admin" | "super_admin" | "user"
+  role: "CUSTOMER" | "ADMIN" | "SUPER_ADMIN"
+  isActive: boolean
 }
 
 interface AuthContextType {
@@ -43,58 +44,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoading(false)
   }, [])
 
-  // Mock login function - in a real app, this would call your API
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      console.log('Attempting login with:', { email, password })
 
-      // Mock admin users
-      if (email === "admin@example.com" && password === "password") {
-        const adminUser: User = {
-          id: "1",
-          name: "Admin User",
-          email: "admin@example.com",
-          role: "admin",
-        }
-        setUser(adminUser)
-        localStorage.setItem("user", JSON.stringify(adminUser))
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      })
 
-        // Stay on current page after login
-        return true
-      } else if (email === "superadmin@example.com" && password === "password") {
-        const superAdminUser: User = {
-          id: "2",
-          name: "Super Admin",
-          email: "superadmin@example.com",
-          role: "super_admin",
-        }
-        setUser(superAdminUser)
-        localStorage.setItem("user", JSON.stringify(superAdminUser))
+      const data = await response.json()
+      console.log('Login response:', data)
 
-        // Stay on current page after login
-        return true
-      } else if (email === "cliente@example.com" && password === "password") {
-        const clientUser: User = {
-          id: "3",
-          name: "Cliente User",
-          email: "cliente@example.com",
-          role: "user",
-        }
-        setUser(clientUser)
-        localStorage.setItem("user", JSON.stringify(clientUser))
-        return true
+      if (!response.ok) {
+        throw new Error(data.message || "Error al iniciar sesión")
       }
 
-      return false
+      const { user } = data
+      setUser(user)
+      localStorage.setItem("user", JSON.stringify(user))
+      return true
     } catch (error) {
       console.error("Login error:", error)
-      return false
+      throw error
     }
   }
 
   const logout = () => {
-    const wasAdmin = user?.role === "admin" || user?.role === "super_admin"
+    const wasAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"
 
     setUser(null)
     localStorage.removeItem("user")
@@ -107,8 +85,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // For regular users, they stay on the current page
   }
 
-  const isAdmin = user?.role === "admin" || user?.role === "super_admin"
-  const isSuperAdmin = user?.role === "super_admin"
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"
+  const isSuperAdmin = user?.role === "SUPER_ADMIN"
 
   return (
     <AuthContext.Provider value={{ user, isAdmin, isSuperAdmin, login, logout }}>

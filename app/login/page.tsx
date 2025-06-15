@@ -15,7 +15,6 @@ import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Logo } from "@/components/ui/logo"
-import { Separator } from "@/components/ui/separator"
 
 const formSchema = z.object({
   email: z.string().email({
@@ -46,38 +45,27 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const success = await login(values.email, values.password)
+      await login(values.email, values.password)
 
-      if (success) {
-        toast({
-          title: "Inicio de sesión exitoso",
-          description: "Has iniciado sesión correctamente.",
-        })
+      toast({
+        title: "Inicio de sesión exitoso",
+        description: "Has iniciado sesión correctamente.",
+      })
 
-        // Get the redirect URL from search params or default behavior
-        const redirectTo = searchParams.get("redirect")
+      // Get the redirect URL from search params or default behavior
+      const redirectTo = searchParams?.get("redirect")
 
-        if (redirectTo) {
-          // Redirect to the page they were trying to access
-          router.push(redirectTo)
-        } else if (values.email.includes("admin")) {
-          // If admin and no specific redirect, go to admin
-          router.push("/admin")
-        } else {
-          // Regular users stay on current page or go to home
-          router.push("/")
-        }
+      if (redirectTo) {
+        // Redirect to the page they were trying to access
+        router.push(redirectTo)
       } else {
-        toast({
-          title: "Error de inicio de sesión",
-          description: "Correo electrónico o contraseña incorrectos.",
-          variant: "destructive",
-        })
+        // Regular users go to home
+        router.push("/")
       }
     } catch (error) {
       toast({
         title: "Error de inicio de sesión",
-        description: "Ha ocurrido un error al iniciar sesión. Por favor, inténtalo de nuevo.",
+        description: error instanceof Error ? error.message : "Error al iniciar sesión",
         variant: "destructive",
       })
     } finally {
@@ -149,18 +137,7 @@ export default function LoginPage() {
                 )}
               />
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="remember"
-                    className="h-4 w-4 rounded border-gray-300 text-[var(--primary-color)] focus:ring-[var(--primary-color)]"
-                  />
-                  <label htmlFor="remember" className="text-sm text-gray-500">
-                    Recordarme
-                  </label>
-                </div>
-
+              <div className="flex items-center justify-end">
                 <Link
                   href="/recuperar-contrasena"
                   className="text-sm font-medium text-[var(--primary-color)] hover:underline"
@@ -178,33 +155,15 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-gray-500">O continúa con</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" type="button" className="w-full">
-              Google
-            </Button>
-            <Button variant="outline" type="button" className="w-full">
-              Facebook
-            </Button>
-          </div>
         </CardContent>
 
-        <CardFooter className="flex justify-center border-t p-6">
-          <div className="text-center">
+        <CardFooter className="text-center">
+          <p className="text-sm text-gray-600">
             ¿No tienes una cuenta?{" "}
             <Link href="/registro" className="font-medium text-[var(--primary-color)] hover:underline">
-              Regístrate
+              Regístrate aquí
             </Link>
-          </div>
+          </p>
         </CardFooter>
       </Card>
     </div>
