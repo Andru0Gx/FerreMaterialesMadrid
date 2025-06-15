@@ -91,7 +91,7 @@ export default function Header() {
           {/* Actions */}
           <div className="flex items-center space-x-4">
             {/* Search - Only visible on desktop */}
-            {!isMobile && (
+            {/* {!isMobile && (
               <>
                 {isSearchOpen ? (
                   <div className="relative w-64 animate-in fade-in duration-300">
@@ -112,7 +112,7 @@ export default function Header() {
                   </button>
                 )}
               </>
-            )}
+            )} */}
 
             {/* User Dropdown - Only visible on desktop */}
             {!isMobile && (
@@ -200,9 +200,9 @@ export default function Header() {
                       <LogoExtendido height="32" className="mr-2" />
                     </Link>
 
-                    <div className="mb-6">
+                    {/* <div className="mb-6">
                       <Input type="search" placeholder="Buscar productos..." />
-                    </div>
+                    </div> */}
 
                     <nav className="flex flex-col space-y-4">
                       <Link

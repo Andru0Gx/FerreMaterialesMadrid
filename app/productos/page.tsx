@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import ProductsGrid from "@/components/products/products-grid"
 import ProductsFilters, { type Filters } from "@/components/products/products-filters"
 import ProductsSorting from "@/components/products/products-sorting"
+import { ProductsSearch } from "@/components/products/products-search"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getProducts } from "@/lib/data"
 import type { Product } from "@/lib/types"
@@ -60,28 +61,38 @@ export default function ProductsPage() {
 
   // Update URL when filters change
   useEffect(() => {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams(searchParams?.toString() || "")
 
     if (filters.categories.length > 0) {
       params.set("category", filters.categories[0])
+    } else {
+      params.delete("category")
     }
     if (filters.priceRange[0] > 0) {
       params.set("minPrice", filters.priceRange[0].toString())
+    } else {
+      params.delete("minPrice")
     }
     if (filters.priceRange[1] < maxPrice) {
       params.set("maxPrice", filters.priceRange[1].toString())
+    } else {
+      params.delete("maxPrice")
     }
     if (filters.inStock) {
       params.set("inStock", "true")
+    } else {
+      params.delete("inStock")
     }
     if (filters.onSale) {
       params.set("onSale", "true")
+    } else {
+      params.delete("onSale")
     }
 
     const search = params.toString()
     const query = search ? `?${search}` : ""
     router.push(`/productos${query}`, { scroll: false })
-  }, [filters, maxPrice, router])
+  }, [filters, maxPrice, router, searchParams])
 
   const handleFiltersChange = useCallback((newFilters: Filters) => {
     setFilters(newFilters)
@@ -91,9 +102,22 @@ export default function ProductsPage() {
     setSortedProducts(newSortedProducts)
   }, [])
 
-  // Aplicar filtros a los productos
+  // Aplicar filtros y búsqueda a los productos
   const filteredProducts = useMemo(() => {
+    const searchQuery = searchParams?.get("search")?.toLowerCase() || ""
+
     return products.filter((product) => {
+      // Search filter
+      if (searchQuery) {
+        const matchesSearch =
+          product.name.toLowerCase().includes(searchQuery) ||
+          product.description.toLowerCase().includes(searchQuery) ||
+          product.sku?.toLowerCase().includes(searchQuery) ||
+          product.category.toLowerCase().includes(searchQuery)
+
+        if (!matchesSearch) return false
+      }
+
       // Category filter
       if (filters.categories.length > 0 && !filters.categories.includes(product.category.toLowerCase())) {
         return false
@@ -118,7 +142,7 @@ export default function ProductsPage() {
 
       return true
     })
-  }, [products, filters])
+  }, [products, filters, searchParams])
 
   // Actualizar productos ordenados cuando cambian los filtros
   useEffect(() => {
@@ -132,6 +156,11 @@ export default function ProductsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Nuestros Productos</h1>
+
+      {/* Search Bar */}
+      <div className="mb-8">
+        <ProductsSearch />
+      </div>
 
       <div className="flex flex-col md:flex-row gap-8">
         {/* Filtros laterales para desktop */}
@@ -162,6 +191,15 @@ export default function ProductsPage() {
               onSort={handleSort}
             />
           </div>
+
+          {searchParams?.get("search") && (
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">
+                Resultados de búsqueda para: "{searchParams.get("search")}"
+              </h2>
+              <p className="text-gray-500">{filteredProducts.length} productos encontrados</p>
+            </div>
+          )}
 
           <ProductsGrid products={sortedProducts} />
         </div>
