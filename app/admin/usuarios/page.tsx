@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -40,156 +40,38 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 
 type SortConfig = {
-  key: string
+  key: keyof User
   direction: "asc" | "desc"
 } | null
 
-export default function UsersPage() {
-  const [usersData, setUsersData] = useState([
-    {
-      id: "1",
-      name: "Juan Pérez",
-      email: "juan.perez@example.com",
-      phone: "+58 412 123 4567",
-      address: "Calle Principal 123, Maturín, Venezuela",
-      registeredDate: "2023-01-15",
-      lastLogin: "2023-05-10",
-      status: "active",
-      orders: [
-        {
-          id: "ORD-001",
-          date: "2023-04-15",
-          total: 125.99,
-          status: "completed",
-          items: [
-            { name: "Taladro Percutor", price: 89.99, quantity: 1 },
-            { name: "Juego de Brocas", price: 35.99, quantity: 1 },
-          ],
-        },
-        {
-          id: "ORD-005",
-          date: "2023-05-02",
-          total: 199.76,
-          status: "completed",
-          items: [
-            { name: "Sierra Circular", price: 149.99, quantity: 1 },
-            { name: "Disco de Corte", price: 24.99, quantity: 2 },
-          ],
-        },
-      ],
-      totalSpent: 325.75,
-    },
-    {
-      id: "2",
-      name: "María López",
-      email: "maria.lopez@example.com",
-      phone: "+58 412 987 6543",
-      address: "Avenida Bolívar 456, Maturín, Venezuela",
-      registeredDate: "2023-02-20",
-      lastLogin: "2023-05-09",
-      status: "active",
-      orders: [
-        {
-          id: "ORD-002",
-          date: "2023-03-20",
-          total: 189.99,
-          status: "completed",
-          items: [
-            { name: "Lijadora Orbital", price: 129.99, quantity: 1 },
-            { name: "Papel de Lija (Pack)", price: 19.99, quantity: 3 },
-          ],
-        },
-      ],
-      totalSpent: 189.99,
-    },
-    {
-      id: "3",
-      name: "Carlos Rodríguez",
-      email: "carlos.rodriguez@example.com",
-      phone: "+58 414 555 1234",
-      address: "Calle Miranda 789, Maturín, Venezuela",
-      registeredDate: "2023-03-05",
-      lastLogin: "2023-05-08",
-      status: "active",
-      orders: [
-        {
-          id: "ORD-003",
-          date: "2023-04-05",
-          total: 79.99,
-          status: "completed",
-          items: [
-            { name: "Juego de Destornilladores", price: 45.99, quantity: 1 },
-            { name: "Cinta Métrica", price: 12.99, quantity: 1 },
-            { name: "Nivel de Burbuja", price: 21.0, quantity: 1 },
-          ],
-        },
-        {
-          id: "ORD-006",
-          date: "2023-05-07",
-          total: 74.99,
-          status: "processing",
-          items: [
-            { name: "Martillo de Carpintero", price: 34.99, quantity: 1 },
-            { name: "Clavos (Caja)", price: 9.99, quantity: 4 },
-          ],
-        },
-      ],
-      totalSpent: 154.98,
-    },
-    {
-      id: "4",
-      name: "Ana Martínez",
-      email: "ana.martinez@example.com",
-      phone: "+58 416 789 0123",
-      address: "Urbanización El Centro, Casa 12, Maturín, Venezuela",
-      registeredDate: "2023-03-15",
-      lastLogin: "2023-05-07",
-      status: "inactive",
-      orders: [
-        {
-          id: "ORD-004",
-          date: "2023-03-25",
-          total: 69.99,
-          status: "completed",
-          items: [
-            { name: "Juego de Llaves Allen", price: 29.99, quantity: 1 },
-            { name: "Guantes de Trabajo", price: 19.99, quantity: 2 },
-          ],
-        },
-      ],
-      totalSpent: 69.99,
-    },
-    {
-      id: "5",
-      name: "Pedro Sánchez",
-      email: "pedro.sanchez@example.com",
-      phone: "+58 424 321 6547",
-      address: "Avenida Libertador 234, Maturín, Venezuela",
-      registeredDate: "2023-04-10",
-      lastLogin: "2023-05-06",
-      status: "active",
-      orders: [
-        {
-          id: "ORD-007",
-          date: "2023-04-20",
-          total: 84.98,
-          status: "completed",
-          items: [
-            { name: "Alicates", price: 24.99, quantity: 1 },
-            { name: "Pinzas", price: 19.99, quantity: 1 },
-            { name: "Cortacables", price: 39.99, quantity: 1 },
-          ],
-        },
-      ],
-      totalSpent: 84.98,
-    },
-  ]);
+interface User {
+  id: string
+  name: string
+  email: string
+  phone: string
+  address: string
+  status: string
+  orders: {
+    id: string
+    date: string
+    total: number
+    status: string
+    items: {
+      name: string
+      price: number
+      quantity: number
+    }[]
+  }[]
+  totalSpent: number
+}
 
+export default function UsersPage() {
+  const [usersData, setUsersData] = useState<User[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false)
-  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
   const [isChangeStatusOpen, setIsChangeStatusOpen] = useState(false)
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false)
   const [emailSubject, setEmailSubject] = useState("")
@@ -197,23 +79,49 @@ export default function UsersPage() {
   const [sortConfig, setSortConfig] = useState<SortConfig>(null)
   const { toast } = useToast()
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/users')
+        if (!response.ok) throw new Error('Error al cargar los usuarios')
+        const data = await response.json()
+        setUsersData(data)
+      } catch (error) {
+        console.error('Error:', error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los usuarios. Por favor, intente de nuevo.",
+          variant: "destructive"
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchUsers()
+  }, [toast])
+
   // Sort function
   const sortedUsers = [...usersData].sort((a, b) => {
     if (!sortConfig) return 0
 
     const { key, direction } = sortConfig
+    const aValue = a[key]
+    const bValue = b[key]
 
-    if (a[key] < b[key]) {
-      return direction === "asc" ? -1 : 1
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return direction === "asc"
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue)
     }
-    if (a[key] > b[key]) {
-      return direction === "asc" ? 1 : -1
-    }
+
+    if (aValue < bValue) return direction === "asc" ? -1 : 1
+    if (aValue > bValue) return direction === "asc" ? 1 : -1
     return 0
   })
 
   // Request sort
-  const requestSort = (key: string) => {
+  const requestSort = (key: keyof User) => {
     let direction: "asc" | "desc" = "asc"
     if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc"
@@ -239,63 +147,74 @@ export default function UsersPage() {
     setSearchTerm(e.target.value)
   }
 
-  const handleViewUserDetail = (user: any) => {
+  const handleViewUserDetail = (user: User) => {
     setSelectedUser(user)
     setIsUserDetailOpen(true)
   }
 
-  const handleResetPassword = (user: any) => {
-    setSelectedUser(user)
-    setIsResetPasswordOpen(true)
-  }
-
-  const handleChangeStatus = (user: any) => {
+  const handleChangeStatus = (user: User) => {
     setSelectedUser(user)
     setIsChangeStatusOpen(true)
   }
 
-  const handleSendEmail = (user: any) => {
+  const handleSendEmail = (user: User) => {
     setSelectedUser(user)
     setEmailSubject("")
     setEmailMessage("")
     setIsEmailDialogOpen(true)
   }
 
-  const handleSaveResetPassword = () => {
-    setIsResetPasswordOpen(false)
-    toast({
-      title: "Contraseña restablecida",
-      description: "Se ha enviado un correo al usuario con instrucciones para restablecer su contraseña.",
-    })
-  }
+  const handleSaveStatusChange = async () => {
+    if (!selectedUser) return
 
-  const handleSaveStatusChange = () => {
-    const newStatus = document.querySelector('input[name="status"]:checked')?.value || selectedUser.status;
-    
-    setUsersData(prevUsers => 
-      prevUsers.map(user => 
-        user.id === selectedUser.id ? { ...user, status: newStatus } : user
+    const statusInput = document.querySelector('input[name="status"]:checked') as HTMLInputElement
+    const newStatus = statusInput?.value || selectedUser.status
+
+    try {
+      const response = await fetch(`/api/users?id=${selectedUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar el estado')
+      }
+
+      setUsersData(prevUsers =>
+        prevUsers.map(user =>
+          user.id === selectedUser.id ? { ...user, status: newStatus } : user
+        )
       )
-    );
 
-    setSelectedUser(prev => ({ ...prev, status: newStatus }));
+      setSelectedUser(prev => prev ? { ...prev, status: newStatus } : null)
 
-    setIsChangeStatusOpen(false);
-    toast({
-      title: "Estado actualizado",
-      description: "El estado del usuario ha sido actualizado correctamente.",
-    });
+      setIsChangeStatusOpen(false)
+      toast({
+        title: "Estado actualizado",
+        description: "El estado del usuario ha sido actualizado correctamente.",
+      })
+    } catch (error) {
+      console.error('Error:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado del usuario. Por favor, intente de nuevo.",
+        variant: "destructive"
+      })
+    }
   }
 
   const handleSendEmailSubmit = () => {
     setIsEmailDialogOpen(false)
     toast({
       title: "Correo enviado",
-      description: `Se ha enviado un correo a ${selectedUser.email} correctamente.`,
+      description: `Se ha enviado un correo a ${selectedUser?.email} correctamente.`,
     })
   }
 
-  const getSortIcon = (key: string) => {
+  const getSortIcon = (key: keyof User) => {
     if (!sortConfig || sortConfig.key !== key) {
       return <ArrowUpDown className="ml-1 h-4 w-4" />
     }
@@ -304,6 +223,10 @@ export default function UsersPage() {
     ) : (
       <ChevronDown className="ml-1 h-4 w-4" />
     )
+  }
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">Cargando usuarios...</div>
   }
 
   return (
@@ -369,24 +292,6 @@ export default function UsersPage() {
                 </th>
                 <th
                   className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
-                  onClick={() => requestSort("registeredDate")}
-                >
-                  <div className="flex items-center">
-                    Fecha de Registro
-                    {getSortIcon("registeredDate")}
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
-                  onClick={() => requestSort("lastLogin")}
-                >
-                  <div className="flex items-center">
-                    Último Acceso
-                    {getSortIcon("lastLogin")}
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
                   onClick={() => requestSort("status")}
                 >
                   <div className="flex items-center">
@@ -400,7 +305,7 @@ export default function UsersPage() {
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-gray-500">
+                  <td colSpan={5} className="text-center py-8 text-gray-500">
                     No se encontraron usuarios
                   </td>
                 </tr>
@@ -413,12 +318,6 @@ export default function UsersPage() {
                     <td className="px-4 py-3 text-sm font-medium">{user.name}</td>
                     <td className="px-4 py-3 text-sm">{user.email}</td>
                     <td className="px-4 py-3 text-sm">{user.phone}</td>
-                    <td className="px-4 py-3 text-sm">
-                      {new Date(user.registeredDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {new Date(user.lastLogin).toLocaleDateString()}
-                    </td>
                     <td className="px-4 py-3 text-sm">
                       <Badge
                         variant="outline"
@@ -461,11 +360,6 @@ export default function UsersPage() {
                             >
                               Contactar por WhatsApp
                             </a>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleResetPassword(user)}>
-                            <Lock className="mr-2 h-4 w-4" />
-                            Restablecer contraseña
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleChangeStatus(user)}>
                             <UserCog className="mr-2 h-4 w-4" />
@@ -535,14 +429,6 @@ export default function UsersPage() {
                       <CardContent className="space-y-2">
                         <div>
                           <span className="font-medium">ID:</span> {selectedUser.id}
-                        </div>
-                        <div>
-                          <span className="font-medium">Fecha de registro:</span>{" "}
-                          {new Date(selectedUser.registeredDate).toLocaleDateString()}
-                        </div>
-                        <div>
-                          <span className="font-medium">Último acceso:</span>{" "}
-                          {new Date(selectedUser.lastLogin).toLocaleDateString()}
                         </div>
                         <div>
                           <span className="font-medium">Estado:</span>{" "}
@@ -651,37 +537,6 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reset Password Dialog */}
-      <Dialog open={isResetPasswordOpen} onOpenChange={setIsResetPasswordOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          {selectedUser && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Restablecer Contraseña</DialogTitle>
-                <DialogDescription>
-                  Enviar un correo electrónico para restablecer la contraseña de {selectedUser.name}.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
-                <p className="mb-4">
-                  Se enviará un correo electrónico a <strong>{selectedUser.email}</strong> con instrucciones para
-                  restablecer la contraseña.
-                </p>
-                <p className="text-sm text-muted-foreground">El enlace de restablecimiento será válido por 24 horas.</p>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsResetPasswordOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="button" onClick={handleSaveResetPassword}>
-                  Enviar Correo
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* Change Status Dialog */}
       <Dialog open={isChangeStatusOpen} onOpenChange={setIsChangeStatusOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -719,12 +574,6 @@ export default function UsersPage() {
                       Inactivo
                     </label>
                   </div>
-                </div>
-                <div className="mt-4">
-                  <label htmlFor="statusReason" className="block text-sm font-medium text-gray-700 mb-1">
-                    Razón del cambio (opcional)
-                  </label>
-                  <Input id="statusReason" placeholder="Razón del cambio de estado" />
                 </div>
               </div>
               <DialogFooter>
