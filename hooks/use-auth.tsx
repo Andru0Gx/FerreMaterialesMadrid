@@ -20,12 +20,14 @@ interface AuthContextType {
   updateUser: (userData: Partial<User>) => void
   isAdmin: boolean
   isSuperAdmin: boolean
+  loading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("user")
       }
     }
+    setLoading(false)
   }, [])
 
   const login = async (email: string, password: string) => {
@@ -90,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isSuperAdmin = user?.role === "SUPER_ADMIN"
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser, isAdmin, isSuperAdmin }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, isAdmin, isSuperAdmin, loading }}>
       {children}
     </AuthContext.Provider>
   )
