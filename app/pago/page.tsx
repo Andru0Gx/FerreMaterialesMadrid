@@ -16,6 +16,17 @@ import { useToast } from "@/components/ui/use-toast"
 import { useCart } from "@/context/cart-context"
 import { useAuth } from "@/hooks/use-auth"
 import { useExchangeRate } from "@/hooks/use-exchange-rate"
+import { formatPrice } from "@/lib/utils"
+
+interface Address {
+  id: string
+  name: string
+  address: string
+  city: string
+  state: string
+  zip: string
+  isDefault: boolean
+}
 
 // Datos de la empresa para pagos móviles y transferencias
 const companyPaymentData = {
@@ -33,14 +44,15 @@ const companyPaymentData = {
 }
 
 // Direcciones de ejemplo del usuario
-const userAddresses = [
+const userAddresses: Address[] = [
   {
     id: "addr-1",
     name: "Casa",
     address: "Calle Principal 123",
     city: "Maturín",
     state: "Monagas",
-    zip: "6201"
+    zip: "6201",
+    isDefault: true
   },
   {
     id: "addr-2",
@@ -48,7 +60,8 @@ const userAddresses = [
     address: "Avenida Comercial 456",
     city: "Maturín",
     state: "Monagas",
-    zip: "6201"
+    zip: "6201",
+    isDefault: false
   }
 ]
 
@@ -56,11 +69,13 @@ export default function CheckoutPage() {
   const router = useRouter()
   const { toast } = useToast()
   const { cart, clearCart } = useCart()
-  const { user } = useAuth()
-  const { formatPrice } = useExchangeRate()
-  const [paymentMethod, setPaymentMethod] = useState("card")
+  const { user, loading } = useAuth()
+  const { rate } = useExchangeRate()
+  const [paymentMethod, setPaymentMethod] = useState("pago-movil")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedAddress, setSelectedAddress] = useState("")
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [loadingAddresses, setLoadingAddresses] = useState(true)
   const [paymentData, setPaymentData] = useState({
     bank: "",
     phone: "",
@@ -69,17 +84,44 @@ export default function CheckoutPage() {
   })
 
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       router.push("/login?redirect=/pago")
       return
     }
 
-    // Seleccionar dirección por defecto
-    const defaultAddress = userAddresses.find((addr) => addr.isDefault)
-    if (defaultAddress) {
-      setSelectedAddress(defaultAddress.id)
+    const loadUserAddresses = async () => {
+      if (user) {
+        try {
+          const response = await fetch(`/api/users/${user.id}/addresses`)
+          if (response.ok) {
+            const data = await response.json()
+            setAddresses(data)
+            // Seleccionar la dirección por defecto si existe
+            const defaultAddress = data.find((addr: Address) => addr.isDefault)
+            if (defaultAddress) {
+              setSelectedAddress(defaultAddress.id)
+            } else if (data.length > 0) {
+              // Si no hay dirección por defecto, seleccionar la primera
+              setSelectedAddress(data[0].id)
+            }
+          } else {
+            throw new Error('Error al cargar las direcciones')
+          }
+        } catch (error) {
+          console.error('Error cargando direcciones:', error)
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar las direcciones",
+            variant: "destructive",
+          })
+        } finally {
+          setLoadingAddresses(false)
+        }
+      }
     }
-  }, [user, router])
+
+    loadUserAddresses()
+  }, [user, router, loading, toast])
 
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0)
   const tax = subtotal * 0.16 // 16% de impuesto
@@ -133,6 +175,14 @@ export default function CheckoutPage() {
     setPaymentData((prev) => ({ ...prev, [field]: value }))
   }
 
+  if (loading || loadingAddresses) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h2 className="text-xl font-medium">Cargando...</h2>
+      </div>
+    )
+  }
+
   if (!user) {
     return null
   }
@@ -149,7 +199,7 @@ export default function CheckoutPage() {
     )
   }
 
-  const selectedAddressData = userAddresses.find((addr) => addr.id === selectedAddress)
+  const selectedAddressData = addresses.find((addr) => addr.id === selectedAddress)
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -166,26 +216,35 @@ export default function CheckoutPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Seleccionar dirección</Label>
-                  <Select value={selectedAddress} onValueChange={setSelectedAddress}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una dirección" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userAddresses.map((address) => (
-                        <SelectItem key={address.id} value={address.id}>
-                          <div className="flex items-center">
-                            <MapPin className="w-4 h-4 mr-2" />
-                            <div>
-                              <span className="font-medium">{address.name}</span>
-                              <div className="text-sm text-gray-500">
-                                {address.address}, {address.city}
+                  {addresses.length > 0 ? (
+                    <Select value={selectedAddress} onValueChange={setSelectedAddress}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una dirección" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {addresses.map((address) => (
+                          <SelectItem key={address.id} value={address.id}>
+                            <div className="flex items-center">
+                              <MapPin className="w-4 h-4 mr-2" />
+                              <div>
+                                <span className="font-medium">{address.name}</span>
+                                <div className="text-sm text-gray-500">
+                                  {address.address}, {address.city}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-gray-500 mb-4">No tienes direcciones guardadas</p>
+                      <Link href="/mi-cuenta?tab=direcciones">
+                        <Button variant="outline">Agregar dirección</Button>
+                      </Link>
+                    </div>
+                  )}
                 </div>
 
                 {selectedAddressData && (
@@ -193,16 +252,10 @@ export default function CheckoutPage() {
                     <p className="font-medium">{selectedAddressData.name}</p>
                     <p className="text-sm text-gray-600">{selectedAddressData.address}</p>
                     <p className="text-sm text-gray-600">
-                      {selectedAddressData.city}, {selectedAddressData.state} {selectedAddressData.zip}
+                      {selectedAddressData.city}, {selectedAddressData.zip}
                     </p>
                   </div>
                 )}
-
-                <div className="text-sm text-blue-600">
-                  <Link href="/mi-cuenta?tab=direcciones">
-                    ¿Quieres usar otra dirección? Gestiona tus direcciones aquí
-                  </Link>
-                </div>
               </div>
             </div>
 
@@ -211,6 +264,7 @@ export default function CheckoutPage() {
               <h2 className="text-xl font-bold mb-4">Método de pago</h2>
 
               <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-4">
+                {/* Comentado temporalmente el método de pago con tarjeta
                 <div className="flex items-center space-x-2 border rounded-md p-4">
                   <RadioGroupItem value="card" id="card" />
                   <Label htmlFor="card" className="flex items-center">
@@ -218,6 +272,7 @@ export default function CheckoutPage() {
                     Tarjeta de crédito/débito
                   </Label>
                 </div>
+                */}
 
                 <div className="flex items-center space-x-2 border rounded-md p-4">
                   <RadioGroupItem value="pago-movil" id="pago-movil" />
@@ -269,7 +324,7 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Formulario para tarjeta */}
+              {/* Comentado temporalmente el formulario de tarjeta
               {paymentMethod === "card" && (
                 <div className="mt-4 space-y-4">
                   <div className="space-y-2">
@@ -294,6 +349,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               )}
+              */}
 
               {/* Formulario para pago móvil y transferencia */}
               {(paymentMethod === "pago-movil" || paymentMethod === "transferencia") && (
@@ -305,25 +361,30 @@ export default function CheckoutPage() {
                         <SelectValue placeholder="Selecciona tu banco" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="0102">0102 - Banco de Venezuela</SelectItem>
-                        <SelectItem value="0108">0108 - BBVA Provincial</SelectItem>
-                        <SelectItem value="0114">0114 - Bancaribe</SelectItem>
-                        <SelectItem value="0115">0115 - Banco Exterior</SelectItem>
-                        <SelectItem value="0128">0128 - Banco Caroní</SelectItem>
-                        <SelectItem value="0134">0134 - Banesco</SelectItem>
-                        <SelectItem value="0151">0151 - BFC Banco Fondo Común</SelectItem>
-                        <SelectItem value="0156">0156 - 100% Banco</SelectItem>
-                        <SelectItem value="0157">0157 - DelSur Banco</SelectItem>
-                        <SelectItem value="0163">0163 - Banco del Tesoro</SelectItem>
-                        <SelectItem value="0166">0166 - Banco Agrícola de Venezuela</SelectItem>
-                        <SelectItem value="0168">0168 - Bancrecer</SelectItem>
-                        <SelectItem value="0169">0169 - Mi Banco</SelectItem>
-                        <SelectItem value="0171">0171 - Banco Activo</SelectItem>
-                        <SelectItem value="0172">0172 - Bancamiga</SelectItem>
-                        <SelectItem value="0174">0174 - Banplus</SelectItem>
-                        <SelectItem value="0175">0175 - Banco Bicentenario</SelectItem>
-                        <SelectItem value="0177">0177 - Banco de la Fuerza Armada Nacional Bolivariana</SelectItem>
-                        <SelectItem value="0191">0191 - Banco Nacional de Crédito</SelectItem>
+                        <SelectItem value="0172">0172 - BANCAMIGA BANCO MICROFINANCIERO, C.A.</SelectItem>
+                        <SelectItem value="0102">0102 - BANCO DE VENEZUELA S.A.C.A.</SelectItem>
+                        <SelectItem value="0104">0104 - BANCO VENEZOLANO DE CRÉDITO, S.A.</SelectItem>
+                        <SelectItem value="0105">0105 - BANCO MERCANTIL, C.A.</SelectItem>
+                        <SelectItem value="0108">0108 - BANCO PROVINCIAL, S.A.</SelectItem>
+                        <SelectItem value="0114">0114 - BANCO DEL CARIBE C.A.</SelectItem>
+                        <SelectItem value="0115">0115 - BANCO EXTERIOR C.A.</SelectItem>
+                        <SelectItem value="0128">0128 - BANCO CARONÍ C.A.</SelectItem>
+                        <SelectItem value="0134">0134 - BANESCO BANCO, C.A.</SelectItem>
+                        <SelectItem value="0137">0137 - BANCO SOFITASA C.A.</SelectItem>
+                        <SelectItem value="0138">0138 - BANCO PLAZA C.A.</SelectItem>
+                        <SelectItem value="0146">0146 - BANCO DE LA GENTE EMPRENDEDORA BANGENTE C.A.</SelectItem>
+                        <SelectItem value="0151">0151 - BFC BANCO FONDO COMÚN C.A.</SelectItem>
+                        <SelectItem value="0156">0156 - 100% BANCO C.A.</SelectItem>
+                        <SelectItem value="0157">0157 - DELSUR BANCO C.A.</SelectItem>
+                        <SelectItem value="0163">0163 - BANCO DEL TESORO C.A.</SelectItem>
+                        <SelectItem value="0168">0168 - BANCRECER S.A. BANCO MICROFINANCIERO</SelectItem>
+                        <SelectItem value="0169">0169 - MIBANCO BANCO DE DESARROLLO C.A.</SelectItem>
+                        <SelectItem value="0171">0171 - BANCO ACTIVO C.A.</SelectItem>
+                        <SelectItem value="0174">0174 - BANPLUS C.A.</SelectItem>
+                        <SelectItem value="0175">0175 - BANCO BICENTENARIO C.A.</SelectItem>
+                        <SelectItem value="0177">0177 - BANFANB C.A.</SelectItem>
+                        <SelectItem value="0191">0191 - BANCO NACIONAL DE CRÉDITO C.A.</SelectItem>
+                        <SelectItem value="0601">0601 - INSTITUTO MUNICIPAL DE CRÉDITO POPULAR</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -391,8 +452,8 @@ export default function CheckoutPage() {
                     <span className="text-gray-500 ml-1">x{item.quantity}</span>
                   </div>
                   <div className="text-right">
-                    <div>{formatPrice(item.price * item.quantity).usd}</div>
-                    <div className="text-xs text-gray-500">{formatPrice(item.price * item.quantity).bs}</div>
+                    <div>{formatPrice(item.price * item.quantity, rate).usd}</div>
+                    <div className="text-xs text-gray-500">{formatPrice(item.price * item.quantity, rate).bs}</div>
                   </div>
                 </div>
               ))}
@@ -404,20 +465,20 @@ export default function CheckoutPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
                 <div className="text-right">
-                  <div>{formatPrice(subtotal).usd}</div>
-                  <div className="text-xs text-gray-500">{formatPrice(subtotal).bs}</div>
+                  <div>{formatPrice(subtotal, rate).usd}</div>
+                  <div className="text-xs text-gray-500">{formatPrice(subtotal, rate).bs}</div>
                 </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Impuestos (16%)</span>
                 <div className="text-right">
-                  <div>{formatPrice(tax).usd}</div>
-                  <div className="text-xs text-gray-500">{formatPrice(tax).bs}</div>
+                  <div>{formatPrice(tax, rate).usd}</div>
+                  <div className="text-xs text-gray-500">{formatPrice(tax, rate).bs}</div>
                 </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Envío</span>
-                <span>{shipping === 0 ? "Gratis" : formatPrice(shipping).combined}</span>
+                <span>{shipping === 0 ? "Gratis" : formatPrice(shipping, rate).combined}</span>
               </div>
 
               <Separator />
@@ -425,8 +486,8 @@ export default function CheckoutPage() {
               <div className="flex justify-between font-bold">
                 <span>Total</span>
                 <div className="text-right">
-                  <div>{formatPrice(total).usd}</div>
-                  <div className="text-sm text-gray-600">{formatPrice(total).bs}</div>
+                  <div>{formatPrice(total, rate).usd}</div>
+                  <div className="text-sm text-gray-600">{formatPrice(total, rate).bs}</div>
                 </div>
               </div>
             </div>
