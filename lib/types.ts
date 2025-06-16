@@ -1,28 +1,119 @@
-export interface Product {
+// Tipos básicos para el carrito
+export interface CartItem {
   id: string
   name: string
+  price: number
+  image: string
   category: string
+  quantity: number
+}
+
+export interface DiscountInfo {
+  code: string
+  type: "percentage" | "fixed"
+  value: number
+  discountAmount: number
+}
+
+// Enums y tipos de estado
+export type Role = "CUSTOMER" | "ADMIN" | "SUPER_ADMIN"
+export type AdminRole = "ADMIN" | "SUPER_ADMIN"
+export type AdminStatus = "ACTIVE" | "INACTIVE"
+export type OrderStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED" | "SHIPPED" | "DELIVERED"
+export type PaymentStatus = "PENDING" | "PAID" | "FAILED"
+export type DiscountType = "PORCENTAJE" | "FIJO" | "ENVIO_GRATIS"
+
+// Interfaces principales
+export interface User {
+  id: string
+  name: string
+  email: string
+  password: string
+  role: Role
+  phone: string | null
+  isActive: boolean
+  isSubscribed: boolean
+  cart: CartItem[] | null
+  addresses?: Address[]
+  orders?: Order[]
+}
+
+export interface Admin {
+  id: string
+  name: string
+  email: string
+  password: string
+  role: AdminRole
+  status: AdminStatus
+  phone: string | null
+}
+
+export interface Promotion {
+  id: string
+  couponCode: string | null
+  discountType: DiscountType
+  discountValue: number
+  startDate: Date | null
+  endDate: Date | null
+  maxUsage: number | null
+  active: boolean
+}
+
+// Interfaces relacionadas con productos
+export interface Product {
+  id: number
+  name: string
+  sku: string
+  price: number
+  description: string
+  shortDescription: string
+  discount: number
+  stock: number
+  slug: string
+  category: string
+  specifications: any
+  images?: ProductImage[]
+  orderItems?: OrderItem[]
+}
+
+export interface ProductImage {
+  id: number
+  imageUrl: string
+  productId: number
+}
+
+// Interfaces relacionadas con órdenes
+export interface Order {
+  id: string
+  userId: string | null
+  status: OrderStatus
+  total: number
+  itemsCount: number
+  phone: string | null
+  email: string | null
+  paymentStatus: PaymentStatus
+  shippingAddressId: string | null
+  items: OrderItem[]
+}
+
+export interface OrderItem {
+  id: number
+  orderId: string
+  productId: number
+  variantId: string | null
+  quantity: number
   price: number
   discount: number
-  rating?: number
-  reviews?: number
-  inStock: boolean
-  images: string[]
-  shortDescription?: string
-  description: string
-  specifications?: string[]
-  questions?: {
-    question: string
-    answer: string
-  }[]
-  featured?: boolean
-  categoryId?: string
-  slug?: string
-  brandId?: string
-  supplierId?: string
-  tags?: string[]
-  sku?: string
-  barcode?: string
+  createdAt: Date
+}
+
+export interface Address {
+  id: string
+  userId: string
+  name: string
+  address: string
+  city: string
+  zip: string
 }
 
 export interface Category {
@@ -69,57 +160,6 @@ export interface SalesData {
   amount: number
 }
 
-export interface Order {
-  id: string
-  customer: string
-  date: string
-  status: "pending" | "processing" | "completed" | "cancelled" | "shipped" | "delivered"
-  total: number
-  items: number
-  phone?: string
-  email?: string
-  paymentStatus?: "pending" | "paid" | "failed"
-  createdAt?: string
-}
-
-export interface Stats {
-  totalSales: number
-  totalOrders: number
-  totalCustomers: number
-  averageOrderValue: number
-  growth: {
-    sales: number
-    orders: number
-    customers: number
-    average: number
-  }
-}
-
-export interface User {
-  id: string
-  name: string
-  email: string
-  role: "customer" | "admin" | "super_admin"
-  avatar?: string
-  phone?: string
-  address?: string
-  city?: string
-  state?: string
-  zip?: string
-  isActive?: boolean
-  isSubscribed?: boolean
-  cart?: CartItem[]
-}
-
-export interface Address {
-  id: string
-  userId: string
-  name: string
-  address: string
-  city: string
-  zip: string
-}
-
 export interface OrderDetail {
   id: string
   orderId: string
@@ -137,42 +177,12 @@ export interface OrderComplete extends Omit<Order, 'items'> {
   scheduledDate?: string
 }
 
-export interface Admin {
-  id: string
-  name: string
-  email: string
-  role: "admin" | "super_admin"
-  permissions: string[]
-  lastLogin?: string
-  phone?: string
-  status?: "active" | "inactive"
-}
-
-export interface Promotion {
-  id: string
-  name: string
-  description: string
-  discountType: "PORCENTAJE" | "FIJO" | "ENVIO_GRATIS"
-  discountValue: number
-  startDate: string
-  endDate: string
-  applicableCategories?: string[]
-  applicableProducts?: string[]
-  minimumPurchase: number
-  couponCode?: string
-  active: boolean
-  durationType?: "date" | "usage" | "both"
-  maxUsage?: number
-  currentUsage?: number
-}
-
+// Interfaces de pago y envío
 export interface PaymentMethod {
   id: string
   name: string
   description: string
   active: boolean
-  processingFee: number
-  icon?: string
 }
 
 export interface ShippingMethod {
@@ -180,9 +190,8 @@ export interface ShippingMethod {
   name: string
   description: string
   price: number
-  estimatedDeliveryDays: number
+  estimatedDays: number
   active: boolean
-  icon?: string
 }
 
 export interface Review {
@@ -267,30 +276,7 @@ export interface PriceHistory {
   date: string
 }
 
-export interface OrderStatus {
-  id: string
-  name: string
-  slug: string
-  color: string
-  description: string
-}
-
-export interface PaymentStatus {
-  id: string
-  name: string
-  slug: string
-  color: string
-  description: string
-}
-
-export interface ShippingStatus {
-  id: string
-  name: string
-  slug: string
-  color: string
-  description: string
-}
-
+// Interfaces de filtros y estadísticas
 export interface FilterOptions {
   period?: "day" | "week" | "month" | "year"
   startDate?: string
@@ -310,13 +296,4 @@ export interface Filters {
   priceRange: [number, number]
   inStock: boolean
   onSale: boolean
-}
-
-export interface CartItem {
-  id: string
-  name: string
-  price: number
-  image: string
-  category: string
-  quantity: number
 }
