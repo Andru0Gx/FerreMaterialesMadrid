@@ -18,6 +18,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   logout: () => void
   updateUser: (userData: Partial<User>) => void
+  isAdmin: boolean
+  isSuperAdmin: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -31,7 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Verificar si hay un usuario en localStorage al cargar
     const storedUser = localStorage.getItem("user")
     if (storedUser) {
-      setUser(JSON.parse(storedUser))
+      try {
+        setUser(JSON.parse(storedUser))
+      } catch (error) {
+        console.error("Error parsing stored user:", error)
+        localStorage.removeItem("user")
+      }
     }
   }, [])
 
@@ -45,16 +52,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password }),
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Error al iniciar sesión")
+      const data = await response.json()
+
+      if (data.status === "error") {
+        throw new Error(data.message)
       }
 
-      const data = await response.json()
-      const userData = data.user
+      setUser(data.user)
+      localStorage.setItem("user", JSON.stringify(data.user))
 
-      setUser(userData)
-      localStorage.setItem("user", JSON.stringify(userData))
+      // Redirigir según el rol del usuario
+      if (data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN") {
+        router.push("/admin")
+      } else {
+        router.push("/")
+      }
     } catch (error) {
       throw error
     }
@@ -63,9 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null)
     localStorage.removeItem("user")
-    if (pathname !== "/") {
-      router.push("/")
-    }
+    router.push("/")
   }
 
   const updateUser = (userData: Partial<User>) => {
@@ -76,8 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"
+  const isSuperAdmin = user?.role === "SUPER_ADMIN"
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, isAdmin, isSuperAdmin }}>
       {children}
     </AuthContext.Provider>
   )

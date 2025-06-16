@@ -12,18 +12,29 @@ export interface CartItem {
   quantity: number
 }
 
+interface DiscountInfo {
+  code: string
+  type: "percentage" | "fixed"
+  value: number
+  discountAmount: number
+}
+
 interface CartContextType {
   cart: CartItem[]
+  discount: DiscountInfo | null
   addToCart: (item: CartItem) => void
   removeFromCart: (id: string) => void
   updateQuantity: (id: string, quantity: number) => void
   clearCart: () => void
+  applyDiscount: (code: string) => Promise<void>
+  removeDiscount: () => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
+  const [discount, setDiscount] = useState<DiscountInfo | null>(null)
   const { user } = useAuth()
 
   // Cargar carrito inicial
@@ -40,6 +51,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           const data = await response.json()
           if (data.cart) {
             setCart(data.cart)
+            // No cargamos el descuento aquí porque queremos que se reinicie en cada carga
             return
           }
         } catch (error) {
@@ -119,10 +131,44 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => {
     setCart([])
+    setDiscount(null)
+  }
+
+  const applyDiscount = async (code: string) => {
+    if (!user?.id) {
+      throw new Error("Debes iniciar sesión para aplicar códigos de descuento")
+    }
+
+    const response = await fetch(`/api/cart?discountCode=${encodeURIComponent(code)}`, {
+      headers: {
+        'x-user-id': user.id
+      }
+    })
+
+    const data = await response.json()
+
+    if (data.discount) {
+      setDiscount(data.discount)
+    } else {
+      throw new Error("Código de descuento inválido")
+    }
+  }
+
+  const removeDiscount = () => {
+    setDiscount(null)
   }
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart }}>
+    <CartContext.Provider value={{
+      cart,
+      discount,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      applyDiscount,
+      removeDiscount
+    }}>
       {children}
     </CartContext.Provider>
   )

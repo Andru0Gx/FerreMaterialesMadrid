@@ -12,79 +12,54 @@ import { useExchangeRate } from "@/hooks/use-exchange-rate"
 import { useToast } from "@/components/ui/use-toast"
 import { formatPrice } from "@/lib/utils"
 
-interface PromoCode {
-  code: string;
-  discountType: "percentage" | "fixed";
-  discountValue: number;
-  isActive: boolean;
-}
-
-// Códigos promocionales de ejemplo
-const promoCodes: PromoCode[] = [
-  {
-    code: "DESCUENTO10",
-    discountType: "percentage",
-    discountValue: 10,
-    isActive: true,
-  },
-  {
-    code: "AHORRA5",
-    discountType: "fixed",
-    discountValue: 5,
-    isActive: true,
-  },
-]
-
 export default function CartPage() {
-  const { cart, updateQuantity, removeFromCart, clearCart } = useCart()
+  const { cart, updateQuantity, removeFromCart, clearCart, discount, applyDiscount, removeDiscount } = useCart()
   const { rate } = useExchangeRate()
   const { toast } = useToast()
   const [couponCode, setCouponCode] = useState("")
-  const [appliedCoupon, setAppliedCoupon] = useState<PromoCode | null>(null)
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
 
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0)
-
-  // Calcular descuento
-  let discount = 0
-  if (appliedCoupon) {
-    if (appliedCoupon.discountType === "percentage") {
-      discount = subtotal * (appliedCoupon.discountValue / 100)
-    } else if (appliedCoupon.discountType === "fixed") {
-      discount = appliedCoupon.discountValue
-    }
-  }
-
-  const subtotalAfterDiscount = subtotal - discount
+  const discountAmount = discount?.discountAmount || 0
+  const subtotalAfterDiscount = subtotal - discountAmount
   const tax = subtotalAfterDiscount * 0.16 // 16% de impuesto
   const shipping = subtotalAfterDiscount > 50 ? 0 : 10 // Envío gratis en compras mayores a $50
   const total = subtotalAfterDiscount + tax + shipping
 
-  const applyCoupon = () => {
-    const foundCoupon = promoCodes.find(
-      (promo) => promo.code.toLowerCase() === couponCode.toLowerCase() && promo.isActive,
-    )
-
-    if (foundCoupon) {
-      setAppliedCoupon(foundCoupon)
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
       toast({
-        title: "Código aplicado",
-        description: `Se ha aplicado el descuento del código ${foundCoupon.code}`,
-      })
-    } else {
-      toast({
-        title: "Código inválido",
-        description: "El código promocional no es válido o ha expirado",
+        title: "Error",
+        description: "Por favor ingresa un código de descuento",
         variant: "destructive",
       })
+      return
+    }
+
+    setIsApplyingCoupon(true)
+    try {
+      await applyDiscount(couponCode)
+      toast({
+        title: "Código aplicado",
+        description: `Se ha aplicado el código de descuento ${couponCode}`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al aplicar el código",
+        variant: "destructive",
+      })
+    } finally {
+      setIsApplyingCoupon(false)
     }
   }
 
-  const removeCoupon = () => {
-    setAppliedCoupon(null)
+  const handleRemoveCoupon = () => {
+    removeDiscount()
     setCouponCode("")
     toast({
       title: "Código removido",
-      description: "Se ha removido el código promocional",
+      description: "Se ha removido el código de descuento",
     })
   }
 
@@ -202,15 +177,15 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {appliedCoupon && (
+              {discount && (
                 <div className="flex justify-between text-green-600">
                   <span className="flex items-center">
                     <Tag className="w-4 h-4 mr-1" />
-                    Descuento ({appliedCoupon.code})
+                    Descuento ({discount.code})
                   </span>
                   <div className="text-right">
-                    <div>-{formatPrice(discount, rate).usd}</div>
-                    <div className="text-xs">-{formatPrice(discount, rate).bs}</div>
+                    <div>-{formatPrice(discountAmount, rate).usd}</div>
+                    <div className="text-xs">-{formatPrice(discountAmount, rate).bs}</div>
                   </div>
                 </div>
               )}
@@ -240,16 +215,21 @@ export default function CartPage() {
 
             <div className="space-y-4">
               {/* Código promocional */}
-              {!appliedCoupon ? (
+              {!discount ? (
                 <div className="space-y-2">
                   <div className="flex gap-2">
                     <Input
                       placeholder="Código de descuento"
                       value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      style={{ textTransform: 'uppercase' }}
                     />
-                    <Button variant="outline" onClick={applyCoupon}>
-                      Aplicar
+                    <Button
+                      variant="outline"
+                      onClick={handleApplyCoupon}
+                      disabled={isApplyingCoupon}
+                    >
+                      {isApplyingCoupon ? "Aplicando..." : "Aplicar"}
                     </Button>
                   </div>
                 </div>
@@ -257,15 +237,15 @@ export default function CartPage() {
                 <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                   <div className="flex items-center text-green-700">
                     <Tag className="w-4 h-4 mr-2" />
-                    <span className="font-medium">{appliedCoupon.code}</span>
+                    <span className="font-medium">{discount.code}</span>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={removeCoupon} className="text-green-700">
+                  <Button variant="ghost" size="sm" onClick={handleRemoveCoupon} className="text-green-700">
                     Remover
                   </Button>
                 </div>
               )}
 
-              <Link href="/pago">
+              <Link href="/pago" className="block mt-6">
                 <Button className="w-full">Proceder al pago</Button>
               </Link>
             </div>

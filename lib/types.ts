@@ -108,6 +108,7 @@ export interface User {
   zip?: string
   isActive?: boolean
   isSubscribed?: boolean
+  cart?: CartItem[]
 }
 
 export interface Address {
@@ -309,4 +310,13 @@ export interface Filters {
   priceRange: [number, number]
   inStock: boolean
   onSale: boolean
+}
+
+export interface CartItem {
+  id: string
+  name: string
+  price: number
+  image: string
+  category: string
+  quantity: number
 }
