@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { useAuth } from "@/hooks/use-auth"
 
 export interface CartItem {
   id: string
@@ -23,23 +24,62 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
+  const { user } = useAuth()
 
-  // Cargar carrito desde localStorage al iniciar
+  // Cargar carrito inicial
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart")
-    if (savedCart) {
-      try {
-        setCart(JSON.parse(savedCart))
-      } catch (error) {
-        console.error("Error parsing cart from localStorage:", error)
+    const loadCart = async () => {
+      if (user?.id) {
+        // Si hay usuario, intentar cargar desde la base de datos
+        try {
+          const response = await fetch('/api/cart', {
+            headers: {
+              'x-user-id': user.id
+            }
+          })
+          const data = await response.json()
+          if (data.cart) {
+            setCart(data.cart)
+            return
+          }
+        } catch (error) {
+          console.error('Error loading cart from database:', error)
+        }
+      }
+
+      // Si no hay usuario o falla la carga desde la base de datos, cargar desde localStorage
+      const savedCart = localStorage.getItem("cart")
+      if (savedCart) {
+        try {
+          setCart(JSON.parse(savedCart))
+        } catch (error) {
+          console.error("Error parsing cart from localStorage:", error)
+        }
       }
     }
-  }, [])
 
-  // Guardar carrito en localStorage cuando cambie
+    loadCart()
+  }, [user])
+
+  // Guardar carrito cuando cambie
   useEffect(() => {
+    // Siempre guardar en localStorage
     localStorage.setItem("cart", JSON.stringify(cart))
-  }, [cart])
+
+    // Si hay usuario, guardar también en la base de datos
+    if (user?.id) {
+      fetch('/api/cart', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({ cart }),
+      }).catch(error => {
+        console.error('Error saving cart to database:', error)
+      })
+    }
+  }, [cart, user])
 
   const addToCart = (item: CartItem) => {
     setCart((prevCart) => {

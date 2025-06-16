@@ -12,3 +12,21 @@ export function formatCurrency(amount: number): string {
     minimumFractionDigits: 2,
   }).format(amount)
 }
+
+interface FormattedPrice {
+  usd: string;
+  bs: string;
+  combined: string;
+}
+
+export function formatPrice(amount: number, rate?: number | null): FormattedPrice {
+  const usd = formatCurrency(amount);
+  const bs = rate ? `Bs. ${(amount * rate).toFixed(2)}` : 'N/A';
+  const combined = rate ? `${usd} (${bs})` : usd;
+
+  return {
+    usd,
+    bs,
+    combined
+  };
+}

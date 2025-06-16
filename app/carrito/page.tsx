@@ -10,9 +10,17 @@ import { Separator } from "@/components/ui/separator"
 import { useCart } from "@/context/cart-context"
 import { useExchangeRate } from "@/hooks/use-exchange-rate"
 import { useToast } from "@/components/ui/use-toast"
+import { formatPrice } from "@/lib/utils"
+
+interface PromoCode {
+  code: string;
+  discountType: "percentage" | "fixed";
+  discountValue: number;
+  isActive: boolean;
+}
 
 // Códigos promocionales de ejemplo
-const promoCodes = [
+const promoCodes: PromoCode[] = [
   {
     code: "DESCUENTO10",
     discountType: "percentage",
@@ -29,10 +37,10 @@ const promoCodes = [
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart } = useCart()
-  const { formatPrice } = useExchangeRate()
+  const { rate } = useExchangeRate()
   const { toast } = useToast()
   const [couponCode, setCouponCode] = useState("")
-  const [appliedCoupon, setAppliedCoupon] = useState(null)
+  const [appliedCoupon, setAppliedCoupon] = useState<PromoCode | null>(null)
 
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0)
 
@@ -41,7 +49,7 @@ export default function CartPage() {
   if (appliedCoupon) {
     if (appliedCoupon.discountType === "percentage") {
       discount = subtotal * (appliedCoupon.discountValue / 100)
-    } else {
+    } else if (appliedCoupon.discountType === "fixed") {
       discount = appliedCoupon.discountValue
     }
   }
@@ -133,8 +141,8 @@ export default function CartPage() {
                 <div className="md:col-span-2 flex justify-between md:justify-center items-center">
                   <span className="md:hidden text-gray-500">Precio:</span>
                   <div className="text-right">
-                    <div className="font-medium">{formatPrice(item.price).usd}</div>
-                    <div className="text-xs text-gray-500">{formatPrice(item.price).bs}</div>
+                    <div className="font-medium">{formatPrice(item.price, rate).usd}</div>
+                    <div className="text-xs text-gray-500">{formatPrice(item.price, rate).bs}</div>
                   </div>
                 </div>
 
@@ -162,8 +170,8 @@ export default function CartPage() {
                 <div className="md:col-span-2 flex justify-between md:justify-center items-center font-medium">
                   <span className="md:hidden text-gray-500">Total:</span>
                   <div className="text-right">
-                    <div className="font-medium">{formatPrice(item.price * item.quantity).usd}</div>
-                    <div className="text-xs text-gray-500">{formatPrice(item.price * item.quantity).bs}</div>
+                    <div className="font-medium">{formatPrice(item.price * item.quantity, rate).usd}</div>
+                    <div className="text-xs text-gray-500">{formatPrice(item.price * item.quantity, rate).bs}</div>
                   </div>
                 </div>
               </div>
@@ -189,8 +197,8 @@ export default function CartPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
                 <div className="text-right">
-                  <div>{formatPrice(subtotal).usd}</div>
-                  <div className="text-xs text-gray-500">{formatPrice(subtotal).bs}</div>
+                  <div>{formatPrice(subtotal, rate).usd}</div>
+                  <div className="text-xs text-gray-500">{formatPrice(subtotal, rate).bs}</div>
                 </div>
               </div>
 
@@ -201,8 +209,8 @@ export default function CartPage() {
                     Descuento ({appliedCoupon.code})
                   </span>
                   <div className="text-right">
-                    <div>-{formatPrice(discount).usd}</div>
-                    <div className="text-xs">-{formatPrice(discount).bs}</div>
+                    <div>-{formatPrice(discount, rate).usd}</div>
+                    <div className="text-xs">-{formatPrice(discount, rate).bs}</div>
                   </div>
                 </div>
               )}
@@ -210,13 +218,13 @@ export default function CartPage() {
               <div className="flex justify-between">
                 <span className="text-gray-600">Impuestos (16%)</span>
                 <div className="text-right">
-                  <div>{formatPrice(tax).usd}</div>
-                  <div className="text-xs text-gray-500">{formatPrice(tax).bs}</div>
+                  <div>{formatPrice(tax, rate).usd}</div>
+                  <div className="text-xs text-gray-500">{formatPrice(tax, rate).bs}</div>
                 </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Envío</span>
-                <span>{shipping === 0 ? "Gratis" : formatPrice(shipping).combined}</span>
+                <span>{shipping === 0 ? "Gratis" : formatPrice(shipping, rate).combined}</span>
               </div>
 
               <Separator />
@@ -224,8 +232,8 @@ export default function CartPage() {
               <div className="flex justify-between font-bold">
                 <span>Total</span>
                 <div className="text-right">
-                  <div>{formatPrice(total).usd}</div>
-                  <div className="text-sm text-gray-600">{formatPrice(total).bs}</div>
+                  <div>{formatPrice(total, rate).usd}</div>
+                  <div className="text-sm text-gray-600">{formatPrice(total, rate).bs}</div>
                 </div>
               </div>
             </div>
