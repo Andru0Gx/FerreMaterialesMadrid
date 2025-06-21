@@ -1,10 +1,38 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getServerSession } from "@/lib/session"
+import jwt from "jsonwebtoken"
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
+
+// Middleware para verificar el token
+async function verifyToken(request: Request) {
+    const authHeader = request.headers.get("Authorization")
+    if (!authHeader) {
+        return null
+    }
+
+    const token = authHeader.replace("Bearer ", "")
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as { id: string; role: string }
+        return decoded
+    } catch (error) {
+        return null
+    }
+}
 
 // GET /api/bank-accounts
 export async function GET(request: Request) {
     try {
+        // Verificar autenticación
+        const decoded = await verifyToken(request)
+        if (!decoded || !["ADMIN", "SUPER_ADMIN"].includes(decoded.role)) {
+            return NextResponse.json(
+                { error: "No autorizado" },
+                { status: 401 }
+            )
+        }
+
         const accounts = await prisma.bankAccount.findMany()
 
         return NextResponse.json(accounts)

@@ -62,7 +62,12 @@ export default function BankAccountsPage() {
 
     const fetchAccounts = async () => {
         try {
-            const response = await fetch("/api/bank-accounts")
+            const token = localStorage.getItem("token")
+            const response = await fetch("/api/bank-accounts", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            })
 
             if (!response.ok) {
                 throw new Error("Error al obtener las cuentas bancarias")
@@ -87,18 +92,14 @@ export default function BankAccountsPage() {
                 ? `/api/bank-accounts/${editingAccount.id}`
                 : "/api/bank-accounts"
 
-            // Convertir el tipo a minúsculas antes de enviar
-            const formattedData = {
-                ...data,
-                type: data.type.toLowerCase()
-            }
-
+            const token = localStorage.getItem("token")
             const response = await fetch(url, {
                 method,
                 headers: {
                     "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify(formattedData),
+                body: JSON.stringify(data),
             })
 
             if (!response.ok) {
@@ -135,8 +136,12 @@ export default function BankAccountsPage() {
 
     const handleDelete = async (id: string) => {
         try {
+            const token = localStorage.getItem("token")
             const response = await fetch(`/api/bank-accounts/${id}`, {
                 method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             })
 
             if (!response.ok) {
