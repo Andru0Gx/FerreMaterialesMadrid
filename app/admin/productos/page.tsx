@@ -119,6 +119,12 @@ export default function ProductsPage() {
   const [isFreeShippingEnabled, setIsFreeShippingEnabled] = useState(false)
   const [isConfirmFreeShippingOpen, setIsConfirmFreeShippingOpen] = useState(false)
 
+  const [isShippingConfigOpen, setIsShippingConfigOpen] = useState(false)
+  const [shippingConfig, setShippingConfig] = useState({
+    amount: "0",
+    isActive: false
+  })
+
   useEffect(() => {
     // Cargar productos y promociones desde la base de datos
     const fetchData = async () => {
@@ -227,19 +233,24 @@ export default function ProductsPage() {
 
   // Efecto para cargar el estado inicial del envío gratis
   useEffect(() => {
-    const checkFreeShipping = async () => {
+    const checkShippingConfig = async () => {
       try {
         const response = await fetch('/api/promotions')
         const promotions = await response.json()
-        const freeShippingPromo = promotions.find(
-          (p: any) => p.discountType === 'ENVIO_GRATIS' && p.active
+        const shippingPromo = promotions.find(
+          (p: any) => p.couponCode === 'ENVIO_GRATIS_GLOBAL' && p.discountType === 'ENVIO_GRATIS'
         )
-        setIsFreeShippingEnabled(!!freeShippingPromo)
+        if (shippingPromo) {
+          setShippingConfig({
+            amount: shippingPromo.discountValue.toString(),
+            isActive: shippingPromo.active
+          })
+        }
       } catch (error) {
-        console.error('Error al verificar estado de envío gratis:', error)
+        console.error('Error al verificar configuración de envío:', error)
       }
     }
-    checkFreeShipping()
+    checkShippingConfig()
   }, [])
 
   // Función para ordenar productos
@@ -812,7 +823,7 @@ export default function ProductsPage() {
       }
 
       // Si está desactivado, mostramos el diálogo de confirmación
-      setIsConfirmFreeShippingOpen(true)
+      setIsShippingConfigOpen(true)
     } catch (error) {
       console.error('Error al cambiar estado de envío gratis:', error)
       toast({
@@ -823,35 +834,43 @@ export default function ProductsPage() {
     }
   }
 
-  // Función para activar el envío gratis después de confirmar
-  const confirmEnableFreeShipping = async () => {
+  // Función para guardar la configuración de envío
+  const handleSaveShippingConfig = async () => {
     try {
+      // Primero eliminamos cualquier configuración existente
+      await fetch('/api/promotions?type=free_shipping', { method: 'DELETE' })
+
+      // Luego creamos la nueva configuración
       const response = await fetch('/api/promotions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           discountType: 'ENVIO_GRATIS',
-          discountValue: 100,
+          discountValue: parseFloat(shippingConfig.amount),
           couponCode: 'ENVIO_GRATIS_GLOBAL',
-          active: true
+          active: shippingConfig.isActive
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Error al activar envío gratis')
+        throw new Error('Error al guardar configuración de envío')
       }
 
-      setIsFreeShippingEnabled(true)
-      setIsConfirmFreeShippingOpen(false)
+      setIsShippingConfigOpen(false)
       toast({
-        title: "Envío gratis activado",
-        description: "Se ha activado el envío gratis para todos los productos",
+        title: "Configuración guardada",
+        description: "La configuración de envío ha sido actualizada",
       })
+
+      // Actualizar la lista de promociones
+      const promosRes = await fetch('/api/promotions')
+      const updatedPromotions = await promosRes.json()
+      setPromotions(updatedPromotions)
     } catch (error) {
-      console.error('Error al activar envío gratis:', error)
+      console.error('Error al guardar configuración de envío:', error)
       toast({
         title: 'Error',
-        description: 'Hubo un error al activar el envío gratis',
+        description: 'Hubo un error al guardar la configuración de envío',
         variant: 'destructive',
       })
     }
@@ -1099,12 +1118,12 @@ export default function ProductsPage() {
                   Agregar Promoción
                 </Button>
                 <Button
-                  onClick={handleFreeShippingToggle}
-                  variant={isFreeShippingEnabled ? "destructive" : "default"}
-                  className={isFreeShippingEnabled ? "bg-red-500 hover:bg-red-600" : ""}
+                  onClick={() => setIsShippingConfigOpen(true)}
+                  variant="default"
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   <Tag className="mr-2 h-4 w-4" />
-                  {isFreeShippingEnabled ? "Desactivar envío gratis" : "Activar envío gratis"}
+                  Configurar Envío
                 </Button>
               </div>
             </div>
@@ -1181,64 +1200,66 @@ export default function ProductsPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredPromotions.map((promotion) => (
-                      <tr key={promotion.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 text-sm font-medium text-gray-900">{promotion.couponCode}</td>
-                        <td className="px-4 py-4 text-sm text-gray-500">
-                          {promotion.discountValue}
-                          {promotion.discountType === "PORCENTAJE" ? "%" : "$"}
-                        </td>
+                    filteredPromotions
+                      .filter(promotion => promotion.couponCode !== 'ENVIO_GRATIS_GLOBAL')
+                      .map((promotion) => (
+                        <tr key={promotion.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-4 text-sm font-medium text-gray-900">{promotion.couponCode}</td>
+                          <td className="px-4 py-4 text-sm text-gray-500">
+                            {promotion.discountValue}
+                            {promotion.discountType === "PORCENTAJE" ? "%" : "$"}
+                          </td>
 
-                        <td className="px-4 py-4 text-sm text-gray-500">
-                          {promotion.maxUsage ? (
-                            `0 / ${promotion.maxUsage}`
-                          ) : promotion.startDate && promotion.endDate ? (
-                            new Date(promotion.startDate).toLocaleDateString('es-VE', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric'
-                            })
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-500">
-                          {promotion.active ? (
-                            <Badge className="bg-green-100 text-green-800 border-green-300">Activa</Badge>
-                          ) : (
-                            <Badge className="bg-gray-100 text-gray-800 border-gray-300">Inactiva</Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 text-right text-sm font-medium">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Abrir menú</span>
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openPromotionForm(promotion)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => togglePromotionStatus(promotion)}>
-                                <Tag className="mr-2 h-4 w-4" />
-                                {promotion.active ? "Desactivar" : "Activar"}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => confirmDeletePromotion(promotion)}
-                                className="text-red-600"
-                              >
-                                <Trash className="mr-2 h-4 w-4" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    ))
+                          <td className="px-4 py-4 text-sm text-gray-500">
+                            {promotion.maxUsage ? (
+                              `0 / ${promotion.maxUsage}`
+                            ) : promotion.startDate && promotion.endDate ? (
+                              new Date(promotion.startDate).toLocaleDateString('es-VE', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                              })
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                          <td className="px-4 py-4 text-sm text-gray-500">
+                            {promotion.active ? (
+                              <Badge className="bg-green-100 text-green-800 border-green-300">Activa</Badge>
+                            ) : (
+                              <Badge className="bg-gray-100 text-gray-800 border-gray-300">Inactiva</Badge>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 text-right text-sm font-medium">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Abrir menú</span>
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openPromotionForm(promotion)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => togglePromotionStatus(promotion)}>
+                                  <Tag className="mr-2 h-4 w-4" />
+                                  {promotion.active ? "Desactivar" : "Activar"}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => confirmDeletePromotion(promotion)}
+                                  className="text-red-600"
+                                >
+                                  <Trash className="mr-2 h-4 w-4" />
+                                  Eliminar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
@@ -1605,22 +1626,44 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo para confirmar activación de envío gratis */}
-      <Dialog open={isConfirmFreeShippingOpen} onOpenChange={setIsConfirmFreeShippingOpen}>
+      {/* Diálogo para configurar envío gratis */}
+      <Dialog open={isShippingConfigOpen} onOpenChange={setIsShippingConfigOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar activación de envío gratis</DialogTitle>
+            <DialogTitle>Configuración de Envío</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas activar el envío gratis para todos los productos?
-              Esta acción creará una promoción global de envío gratis.
+              Configura el monto de envío y su estado
             </DialogDescription>
           </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="shippingAmount">Monto del envío ($)</Label>
+              <Input
+                id="shippingAmount"
+                type="number"
+                step="0.01"
+                value={shippingConfig.amount}
+                onChange={(e) => setShippingConfig(prev => ({ ...prev, amount: e.target.value }))}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="shippingActive"
+                checked={shippingConfig.isActive}
+                onCheckedChange={(checked) =>
+                  setShippingConfig(prev => ({ ...prev, isActive: checked as boolean }))
+                }
+              />
+              <Label htmlFor="shippingActive">Envío gratis activo</Label>
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConfirmFreeShippingOpen(false)}>
+            <Button variant="outline" onClick={() => setIsShippingConfigOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={confirmEnableFreeShipping} className="bg-orange-500 hover:bg-orange-600">
-              Confirmar
+            <Button onClick={handleSaveShippingConfig} className="bg-orange-500 hover:bg-orange-600">
+              Guardar configuración
             </Button>
           </DialogFooter>
         </DialogContent>
