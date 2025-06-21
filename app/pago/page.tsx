@@ -63,7 +63,7 @@ const userAddresses: Address[] = [
 export default function CheckoutPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { cart, clearCart } = useCart()
+  const { cart, clearCart, discount } = useCart()
   const { user, loading } = useAuth()
   const { rate } = useExchangeRate()
   const [paymentMethod, setPaymentMethod] = useState("")
@@ -149,9 +149,11 @@ export default function CheckoutPage() {
   }, [user, router, loading, toast])
 
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0)
-  const tax = subtotal * 0.16 // 16% de impuesto
-  const shipping = subtotal > 50 ? 0 : 10 // Envío gratis en compras mayores a $50
-  const total = subtotal + tax + shipping
+  const discountAmount = discount?.discountAmount || 0
+  const subtotalAfterDiscount = subtotal - discountAmount
+  const tax = subtotalAfterDiscount * 0.16 // 16% de impuesto
+  const shipping = subtotalAfterDiscount > 50 ? 0 : 10 // Envío gratis en compras mayores a $50
+  const total = subtotalAfterDiscount + tax + shipping
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -436,6 +438,17 @@ export default function CheckoutPage() {
                   <div className="text-xs text-gray-500">{formatPrice(subtotal, rate).bs}</div>
                 </div>
               </div>
+
+              {discount && (
+                <div className="flex justify-between text-green-600">
+                  <span>Descuento ({discount.code})</span>
+                  <div className="text-right">
+                    <div>-{formatPrice(discountAmount, rate).usd}</div>
+                    <div className="text-xs">-{formatPrice(discountAmount, rate).bs}</div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <span className="text-gray-600">Impuestos (16%)</span>
                 <div className="text-right">
@@ -443,6 +456,7 @@ export default function CheckoutPage() {
                   <div className="text-xs text-gray-500">{formatPrice(tax, rate).bs}</div>
                 </div>
               </div>
+
               <div className="flex justify-between">
                 <span className="text-gray-600">Envío</span>
                 <span>{shipping === 0 ? "Gratis" : formatPrice(shipping, rate).combined}</span>
