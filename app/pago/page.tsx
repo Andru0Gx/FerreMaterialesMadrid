@@ -38,28 +38,6 @@ interface BankAccount {
   accountHolder: string
 }
 
-// Direcciones de ejemplo del usuario
-const userAddresses: Address[] = [
-  {
-    id: "addr-1",
-    name: "Casa",
-    address: "Calle Principal 123",
-    city: "Maturín",
-    state: "Monagas",
-    zip: "6201",
-    isDefault: true
-  },
-  {
-    id: "addr-2",
-    name: "Trabajo",
-    address: "Avenida Comercial 456",
-    city: "Maturín",
-    state: "Monagas",
-    zip: "6201",
-    isDefault: false
-  }
-]
-
 export default function CheckoutPage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -198,7 +176,6 @@ export default function CheckoutPage() {
       }
 
       const token = localStorage.getItem('token')
-      console.log("Sending order with data:", orderData)
 
       const response = await fetch('/api/orders', {
         method: 'POST',

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getOrders, getOrderById, getOrderItems, createOrder } from '@/lib/db-queries'
 import prisma from "@/lib/prisma"
-import { getServerSession } from "@/lib/session"
 import jwt from "jsonwebtoken"
 import { AccountType, OrderStatus, PaymentStatus } from "@prisma/client"
+import { generateOrderNumber } from "@/lib/utils"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 
@@ -14,27 +14,31 @@ export async function GET(request: Request) {
         const includeItems = searchParams.get('includeItems') === 'true'
 
         if (id) {
-            const order = await getOrderById(id)
-            if (!order.rows[0]) {
+            const order = await prisma.order.findUnique({
+                where: { id },
+                include: {
+                    items: includeItems,
+                    shippingAddress: true
+                }
+            })
+
+            if (!order) {
                 return NextResponse.json(
                     { status: 'error', message: 'Pedido no encontrado' },
                     { status: 404 }
                 )
             }
 
-            if (includeItems) {
-                const items = await getOrderItems(id)
-                return NextResponse.json({
-                    ...order.rows[0],
-                    items: items.rows
-                })
-            }
-
-            return NextResponse.json(order.rows[0])
+            return NextResponse.json(order)
         }
 
-        const result = await getOrders()
-        return NextResponse.json(result.rows)
+        const orders = await prisma.order.findMany({
+            include: {
+                items: includeItems,
+                shippingAddress: true
+            }
+        })
+        return NextResponse.json(orders)
     } catch (error) {
         console.error('Error al obtener pedidos:', error)
         return NextResponse.json(
@@ -68,11 +72,8 @@ export async function POST(request: Request) {
     try {
         const decoded = await verifyToken(request)
         if (!decoded) {
-            console.log("Token verification failed")
             return NextResponse.json({ error: "No autorizado" }, { status: 401 })
         }
-
-        console.log("Decoded token:", decoded)
 
         // Verificar que el usuario existe
         const user = await prisma.user.findUnique({
@@ -80,7 +81,6 @@ export async function POST(request: Request) {
         })
 
         if (!user) {
-            console.log("User not found with ID:", decoded.id)
             return NextResponse.json({
                 error: "Usuario no encontrado",
                 details: `No se encontró un usuario con el ID: ${decoded.id}`
@@ -100,8 +100,6 @@ export async function POST(request: Request) {
             discount
         } = data
 
-        console.log("Payment data received:", { paymentMethod, paymentBank, paymentReference })
-
         if (!paymentBank) {
             return NextResponse.json({
                 error: "Datos de pago incompletos",
@@ -109,8 +107,12 @@ export async function POST(request: Request) {
             }, { status: 400 })
         }
 
+        // Generar número de orden
+        const orderNumber = await generateOrderNumber()
+
         // Preparar los datos de la orden
         const orderData: any = {
+            orderNumber,
             userId: user.id,
             status: OrderStatus.PENDING,
             total,

@@ -70,6 +70,7 @@ model ProductImage {
 
 model Order {
   id              String      @id @default(uuid())
+  orderNumber     String      @unique @map("order_number") // Formato: #FM-000000000
   userId          String?     @map("user_id")
   status          OrderStatus
   total           Float
