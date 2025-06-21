@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { writeFile } from "fs/promises"
 import path from "path"
+import prisma from "@/lib/prisma"
 
 export async function POST(request: Request) {
   try {
@@ -35,8 +36,15 @@ export async function POST(request: Request) {
       await writeFile(path.join(uploadDir, filename), buffer)
     }
 
-    // Devolver la URL del archivo
+    // Construir la URL del archivo
     const fileUrl = `/uploads/receipts/${filename}`
+
+    // Actualizar la orden con la URL del comprobante
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { paymentReceipt: fileUrl }
+    })
+
     return NextResponse.json({ url: fileUrl })
   } catch (error) {
     console.error("Error al subir la imagen:", error)

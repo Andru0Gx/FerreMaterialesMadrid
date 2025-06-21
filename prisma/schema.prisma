@@ -78,6 +78,9 @@ model Order {
   email           String?
   paymentStatus   PaymentStatus @default(PENDING) @map("payment_status")
   shippingAddressId String?   @map("shipping_address_id")
+  paymentReceipt  String?     @map("payment_receipt")
+  discountCode    String?     @map("discount_code")
+  discountAmount  Float?      @map("discount_amount")
   user            User?       @relation(fields: [userId], references: [id])
   shippingAddress Address?    @relation(fields: [shippingAddressId], references: [id])
   items           OrderItem[]

@@ -191,6 +191,9 @@ export default function CheckoutPage() {
         shippingAddressId: selectedAddress,
         paymentMethod: selectedBankAccount.type,
         paymentReference: paymentData.reference,
+        phone: user?.phone || "",
+        email: user?.email || "",
+        discount: discount || null
       }
 
       const token = localStorage.getItem('token')

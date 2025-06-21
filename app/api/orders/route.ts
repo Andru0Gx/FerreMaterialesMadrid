@@ -93,7 +93,9 @@ export async function POST(request: Request) {
             shippingAddressId,
             paymentMethod,
             paymentReference,
-            paymentReceipt
+            phone,
+            email,
+            discount
         } = data
 
         // Crear la orden
@@ -105,6 +107,10 @@ export async function POST(request: Request) {
                 itemsCount: items.length,
                 paymentStatus: "PENDING",
                 shippingAddressId,
+                phone: phone || user.phone,
+                email: email || user.email,
+                discountCode: discount?.code,
+                discountAmount: discount?.discountAmount,
                 items: {
                     create: items.map((item: any) => ({
                         productId: parseInt(item.id),
