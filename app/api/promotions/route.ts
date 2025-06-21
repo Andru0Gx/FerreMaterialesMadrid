@@ -152,9 +152,23 @@ export async function DELETE(request: Request) {
     try {
         const { searchParams } = new URL(request.url)
         const id = searchParams.get('id')
+        const type = searchParams.get('type')
+
+        if (type === 'free_shipping') {
+            // Eliminar todas las promociones de envío gratis activas
+            await prisma.promotion.deleteMany({
+                where: {
+                    discountType: 'ENVIO_GRATIS',
+                    active: true
+                }
+            })
+            return NextResponse.json({ status: 'ok' })
+        }
+
         if (!id) {
             return NextResponse.json({ status: 'error', message: 'ID requerido' }, { status: 400 })
         }
+
         await prisma.promotion.delete({ where: { id } })
         return NextResponse.json({ status: 'ok' })
     } catch (error) {

@@ -116,6 +116,9 @@ export default function ProductsPage() {
   // Estado para deshabilitar el botón Guardar mientras se guarda
   const [isSavingPromotion, setIsSavingPromotion] = useState(false)
 
+  const [isFreeShippingEnabled, setIsFreeShippingEnabled] = useState(false)
+  const [isConfirmFreeShippingOpen, setIsConfirmFreeShippingOpen] = useState(false)
+
   useEffect(() => {
     // Cargar productos y promociones desde la base de datos
     const fetchData = async () => {
@@ -221,6 +224,23 @@ export default function ProductsPage() {
 
     setFilteredPromotions(result)
   }, [promotions, promotionSearchTerm, promotionSortField, promotionSortDirection])
+
+  // Efecto para cargar el estado inicial del envío gratis
+  useEffect(() => {
+    const checkFreeShipping = async () => {
+      try {
+        const response = await fetch('/api/promotions')
+        const promotions = await response.json()
+        const freeShippingPromo = promotions.find(
+          (p: any) => p.discountType === 'ENVIO_GRATIS' && p.active
+        )
+        setIsFreeShippingEnabled(!!freeShippingPromo)
+      } catch (error) {
+        console.error('Error al verificar estado de envío gratis:', error)
+      }
+    }
+    checkFreeShipping()
+  }, [])
 
   // Función para ordenar productos
   const handleSort = (field: string) => {
@@ -777,6 +797,66 @@ export default function ProductsPage() {
     }
   }
 
+  // Función para manejar el toggle de envío gratis
+  const handleFreeShippingToggle = async () => {
+    try {
+      // Si está activado, lo desactivamos directamente
+      if (isFreeShippingEnabled) {
+        await fetch('/api/promotions?type=free_shipping', { method: 'DELETE' })
+        setIsFreeShippingEnabled(false)
+        toast({
+          title: "Envío gratis desactivado",
+          description: "Se ha desactivado el envío gratis para todos los productos",
+        })
+        return
+      }
+
+      // Si está desactivado, mostramos el diálogo de confirmación
+      setIsConfirmFreeShippingOpen(true)
+    } catch (error) {
+      console.error('Error al cambiar estado de envío gratis:', error)
+      toast({
+        title: 'Error',
+        description: 'Hubo un error al actualizar el estado del envío gratis',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // Función para activar el envío gratis después de confirmar
+  const confirmEnableFreeShipping = async () => {
+    try {
+      const response = await fetch('/api/promotions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          discountType: 'ENVIO_GRATIS',
+          discountValue: 100,
+          couponCode: 'ENVIO_GRATIS_GLOBAL',
+          active: true
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al activar envío gratis')
+      }
+
+      setIsFreeShippingEnabled(true)
+      setIsConfirmFreeShippingOpen(false)
+      toast({
+        title: "Envío gratis activado",
+        description: "Se ha activado el envío gratis para todos los productos",
+      })
+    } catch (error) {
+      console.error('Error al activar envío gratis:', error)
+      toast({
+        title: 'Error',
+        description: 'Hubo un error al activar el envío gratis',
+        variant: 'destructive',
+      })
+    }
+  }
+
   // Renderizar el componente
   return (
     <div className="p-6">
@@ -1013,10 +1093,20 @@ export default function ProductsPage() {
                   onChange={(e) => setPromotionSearchTerm(e.target.value)}
                 />
               </div>
-              <Button onClick={() => openPromotionForm()} className="bg-orange-500 hover:bg-orange-600">
-                <Plus className="mr-2 h-4 w-4" />
-                Agregar Promoción
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => openPromotionForm()} className="bg-orange-500 hover:bg-orange-600">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar Promoción
+                </Button>
+                <Button
+                  onClick={handleFreeShippingToggle}
+                  variant={isFreeShippingEnabled ? "destructive" : "default"}
+                  className={isFreeShippingEnabled ? "bg-red-500 hover:bg-red-600" : ""}
+                >
+                  <Tag className="mr-2 h-4 w-4" />
+                  {isFreeShippingEnabled ? "Desactivar envío gratis" : "Activar envío gratis"}
+                </Button>
+              </div>
             </div>
 
             <div className="border rounded-md overflow-hidden">
@@ -1510,6 +1600,27 @@ export default function ProductsPage() {
             </Button>
             <Button variant="destructive" onClick={deletePromotion}>
               Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para confirmar activación de envío gratis */}
+      <Dialog open={isConfirmFreeShippingOpen} onOpenChange={setIsConfirmFreeShippingOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar activación de envío gratis</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas activar el envío gratis para todos los productos?
+              Esta acción creará una promoción global de envío gratis.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsConfirmFreeShippingOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmEnableFreeShipping} className="bg-orange-500 hover:bg-orange-600">
+              Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
