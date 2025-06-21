@@ -155,7 +155,7 @@ export default function CheckoutPage() {
   const shipping = subtotalAfterDiscount > 50 ? 0 : 10 // Envío gratis en compras mayores a $50
   const total = subtotalAfterDiscount + tax + shipping
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!selectedAddress) {
@@ -167,10 +167,10 @@ export default function CheckoutPage() {
       return
     }
 
-    if ((paymentMethod === "pago-movil" || paymentMethod === "transferencia") && !paymentData.receipt) {
+    if (!selectedBankAccount || !paymentData.receipt) {
       toast({
         title: "Error",
-        description: "Debes subir el comprobante de pago",
+        description: "Debes seleccionar un método de pago y subir el comprobante",
         variant: "destructive",
       })
       return
@@ -178,17 +178,71 @@ export default function CheckoutPage() {
 
     setIsSubmitting(true)
 
-    // Simulamos el proceso de pago
-    setTimeout(() => {
-      clearCart()
-      toast({
-        title: "¡Pedido completado!",
-        description: "Tu pedido ha sido procesado correctamente.",
-        duration: 5000,
+    try {
+      // Crear la orden
+      const orderData = {
+        items: cart.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount || 0
+        })),
+        total,
+        shippingAddressId: selectedAddress,
+        paymentMethod: selectedBankAccount.type,
+        paymentReference: paymentData.reference,
+      }
+
+      const token = localStorage.getItem('token')
+      console.log("Sending order with token:", { hasToken: !!token })
+
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(orderData)
       })
-      router.push("/pago/confirmacion")
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.details || errorData.error || 'Error al crear la orden')
+      }
+
+      const order = await response.json()
+
+      // Subir el comprobante de pago
+      if (paymentData.receipt) {
+        const formData = new FormData()
+        formData.append('file', paymentData.receipt)
+        formData.append('orderId', order.id)
+        formData.append('type', 'payment_receipt')
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!uploadResponse.ok) {
+          throw new Error('Error al subir el comprobante')
+        }
+      }
+
+      // Limpiar el carrito
+      clearCart()
+
+      // Redirigir a la página de confirmación con el ID de la orden
+      router.push(`/pago/confirmacion?orderId=${order.id}`)
+    } catch (error) {
+      console.error('Error procesando el pago:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al procesar el pago",
+        variant: "destructive",
+      })
       setIsSubmitting(false)
-    }, 2000)
+    }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,6 +285,16 @@ export default function CheckoutPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Finalizar compra</h1>
+
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-lg font-medium">Procesando tu pedido...</p>
+            <p className="text-gray-500">Por favor, no cierres esta ventana</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Formulario de pago */}

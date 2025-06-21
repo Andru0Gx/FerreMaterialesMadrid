@@ -77,6 +77,8 @@ export async function POST(request: Request) {
                 )
             }
 
+            console.log("Generating token for user:", { id: user.id, role: user.role })
+
             // Generar token JWT
             const token = jwt.sign(
                 { id: user.id, role: user.role },
@@ -86,11 +88,19 @@ export async function POST(request: Request) {
 
             // Devolver los datos del usuario (sin la contraseña) y el token
             const { password: _, ...userWithoutPassword } = user
-            return NextResponse.json({
+            const response = {
                 status: 'success',
                 user: userWithoutPassword,
                 token
+            }
+
+            console.log("Login response:", {
+                userId: user.id,
+                role: user.role,
+                tokenExists: !!token
             })
+
+            return NextResponse.json(response)
         }
 
         // Si es un administrador

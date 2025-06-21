@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 
 export interface User {
   id: string
@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     // Verificar si hay un usuario en localStorage al cargar
@@ -61,14 +62,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.message)
       }
 
+      if (!data.token) {
+        throw new Error("No se recibió el token de autenticación")
+      }
+
       setUser(data.user)
       localStorage.setItem("user", JSON.stringify(data.user))
+      localStorage.setItem("token", data.token)
 
       // Redirigir según el rol del usuario
       if (data.user.role === "ADMIN" || data.user.role === "SUPER_ADMIN") {
         router.push("/admin")
       } else {
-        router.push("/")
+        const redirectTo = searchParams?.get("redirect")
+        if (redirectTo) {
+          router.push(redirectTo)
+        } else {
+          router.push("/")
+        }
       }
     } catch (error) {
       throw error
@@ -78,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null)
     localStorage.removeItem("user")
+    localStorage.removeItem("token")
     router.push("/")
   }
 

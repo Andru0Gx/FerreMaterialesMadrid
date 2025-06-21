@@ -10,6 +10,7 @@ export interface CartItem {
   image: string
   category: string
   quantity: number
+  discount: number
 }
 
 interface DiscountInfo {
