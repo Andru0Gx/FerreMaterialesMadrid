@@ -28,19 +28,14 @@ interface Address {
   isDefault: boolean
 }
 
-// Datos de la empresa para pagos móviles y transferencias
-const companyPaymentData = {
-  pagoMovil: {
-    bank: "0102 - Banco de Venezuela",
-    cedula: "J-12345678-9",
-    phone: "+58 412-1234567",
-  },
-  transferencia: {
-    bank: "0102 - Banco de Venezuela",
-    accountNumber: "01020123456789012345",
-    rif: "J-12345678-9",
-    accountHolder: "Ferre Materiales Madrid C.A.",
-  },
+interface BankAccount {
+  id: string
+  type: "PAGO_MOVIL" | "TRANSFERENCIA"
+  bank: string
+  accountNumber?: string
+  phone?: string
+  document: string
+  accountHolder: string
 }
 
 // Direcciones de ejemplo del usuario
@@ -71,11 +66,14 @@ export default function CheckoutPage() {
   const { cart, clearCart } = useCart()
   const { user, loading } = useAuth()
   const { rate } = useExchangeRate()
-  const [paymentMethod, setPaymentMethod] = useState("pago-movil")
+  const [paymentMethod, setPaymentMethod] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedAddress, setSelectedAddress] = useState("")
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loadingAddresses, setLoadingAddresses] = useState(true)
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [loadingBankAccounts, setLoadingBankAccounts] = useState(true)
+  const [selectedBankAccount, setSelectedBankAccount] = useState<BankAccount | null>(null)
   const [paymentData, setPaymentData] = useState({
     bank: "",
     phone: "",
@@ -120,7 +118,34 @@ export default function CheckoutPage() {
       }
     }
 
+    const loadBankAccounts = async () => {
+      try {
+        const response = await fetch('/api/bank-accounts')
+        if (response.ok) {
+          const data = await response.json()
+          setBankAccounts(data)
+          // Si hay cuentas, seleccionar la primera por defecto
+          if (data.length > 0) {
+            setPaymentMethod(data[0].id)
+            setSelectedBankAccount(data[0])
+          }
+        } else {
+          throw new Error('Error al cargar las cuentas bancarias')
+        }
+      } catch (error) {
+        console.error('Error cargando cuentas bancarias:', error)
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los métodos de pago",
+          variant: "destructive",
+        })
+      } finally {
+        setLoadingBankAccounts(false)
+      }
+    }
+
     loadUserAddresses()
+    loadBankAccounts()
   }, [user, router, loading, toast])
 
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0)
@@ -175,7 +200,7 @@ export default function CheckoutPage() {
     setPaymentData((prev) => ({ ...prev, [field]: value }))
   }
 
-  if (loading || loadingAddresses) {
+  if (loading || loadingAddresses || loadingBankAccounts) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h2 className="text-xl font-medium">Cargando...</h2>
@@ -263,173 +288,115 @@ export default function CheckoutPage() {
             <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
               <h2 className="text-xl font-bold mb-4">Método de pago</h2>
 
-              <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-4">
-                {/* Comentado temporalmente el método de pago con tarjeta
-                <div className="flex items-center space-x-2 border rounded-md p-4">
-                  <RadioGroupItem value="card" id="card" />
-                  <Label htmlFor="card" className="flex items-center">
-                    <CreditCard className="w-5 h-5 mr-2" />
-                    Tarjeta de crédito/débito
-                  </Label>
-                </div>
-                */}
+              {bankAccounts.length === 0 ? (
+                <p className="text-gray-600">No hay métodos de pago disponibles en este momento.</p>
+              ) : (
+                <>
+                  <RadioGroup value={paymentMethod} onValueChange={(value) => {
+                    setPaymentMethod(value)
+                    const account = bankAccounts.find(acc => acc.id === value)
+                    setSelectedBankAccount(account || null)
+                  }} className="space-y-4">
+                    {bankAccounts.map((account) => (
+                      <div key={account.id} className="flex items-center space-x-2 border rounded-md p-4">
+                        <RadioGroupItem value={account.id} id={account.id} />
+                        <Label htmlFor={account.id}>
+                          {account.type === "PAGO_MOVIL" ? "Pago Móvil" : "Transferencia"} - {account.bank}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
 
-                <div className="flex items-center space-x-2 border rounded-md p-4">
-                  <RadioGroupItem value="pago-movil" id="pago-movil" />
-                  <Label htmlFor="pago-movil">Pago Móvil</Label>
-                </div>
-
-                <div className="flex items-center space-x-2 border rounded-md p-4">
-                  <RadioGroupItem value="transferencia" id="transferencia" />
-                  <Label htmlFor="transferencia">Transferencia Bancaria</Label>
-                </div>
-              </RadioGroup>
-
-              {/* Datos de la empresa para pago móvil */}
-              {paymentMethod === "pago-movil" && (
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                  <h3 className="font-medium text-blue-900 mb-2">Datos para Pago Móvil</h3>
-                  <div className="space-y-1 text-sm text-blue-800">
-                    <p>
-                      <strong>Banco:</strong> {companyPaymentData.pagoMovil.bank}
-                    </p>
-                    <p>
-                      <strong>Cédula:</strong> {companyPaymentData.pagoMovil.cedula}
-                    </p>
-                    <p>
-                      <strong>Teléfono:</strong> {companyPaymentData.pagoMovil.phone}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Datos de la empresa para transferencia */}
-              {paymentMethod === "transferencia" && (
-                <div className="mt-4 p-4 bg-green-50 rounded-lg">
-                  <h3 className="font-medium text-green-900 mb-2">Datos para Transferencia</h3>
-                  <div className="space-y-1 text-sm text-green-800">
-                    <p>
-                      <strong>Banco:</strong> {companyPaymentData.transferencia.bank}
-                    </p>
-                    <p>
-                      <strong>Número de cuenta:</strong> {companyPaymentData.transferencia.accountNumber}
-                    </p>
-                    <p>
-                      <strong>RIF:</strong> {companyPaymentData.transferencia.rif}
-                    </p>
-                    <p>
-                      <strong>Titular:</strong> {companyPaymentData.transferencia.accountHolder}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Comentado temporalmente el formulario de tarjeta
-              {paymentMethod === "card" && (
-                <div className="mt-4 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="cardNumber">Número de tarjeta</Label>
-                    <Input id="cardNumber" placeholder="1234 5678 9012 3456" required />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="expiryDate">Fecha de expiración</Label>
-                      <Input id="expiryDate" placeholder="MM/AA" required />
+                  {selectedBankAccount && (
+                    <div className={`mt-4 p-4 rounded-lg ${selectedBankAccount.type === "PAGO_MOVIL" ? "bg-blue-50" : "bg-green-50"
+                      }`}>
+                      <h3 className={`font-medium mb-2 ${selectedBankAccount.type === "PAGO_MOVIL" ? "text-blue-900" : "text-green-900"
+                        }`}>
+                        Datos para {selectedBankAccount.type === "PAGO_MOVIL" ? "Pago Móvil" : "Transferencia"}
+                      </h3>
+                      <div className={`space-y-1 text-sm ${selectedBankAccount.type === "PAGO_MOVIL" ? "text-blue-800" : "text-green-800"
+                        }`}>
+                        <p><strong>Titular:</strong> {selectedBankAccount.accountHolder}</p>
+                        <p><strong>Banco:</strong> {selectedBankAccount.bank}</p>
+                        <p><strong>{selectedBankAccount.type === "PAGO_MOVIL" ? "Cédula/RIF" : "Cédula/RIF"}:</strong> {selectedBankAccount.document}</p>
+                        {selectedBankAccount.type === "PAGO_MOVIL" ? (
+                          <p><strong>Teléfono:</strong> {selectedBankAccount.phone}</p>
+                        ) : (
+                          <p><strong>Número de cuenta:</strong> {selectedBankAccount.accountNumber}</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cvv">CVV</Label>
-                      <Input id="cvv" placeholder="123" required />
+                  )}
+
+                  {selectedBankAccount && (
+                    <div className="mt-4 space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="bank">Banco desde donde realizaste el pago</Label>
+                        <Select onValueChange={(value) => handlePaymentDataChange("bank", value)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona tu banco" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0172">0172 - BANCAMIGA</SelectItem>
+                            <SelectItem value="0102">0102 - BANCO DE VENEZUELA</SelectItem>
+                            <SelectItem value="0104">0104 - BANCO VENEZOLANO DE CRÉDITO</SelectItem>
+                            <SelectItem value="0105">0105 - BANCO MERCANTIL</SelectItem>
+                            <SelectItem value="0108">0108 - BANCO PROVINCIAL</SelectItem>
+                            <SelectItem value="0114">0114 - BANCO DEL CARIBE</SelectItem>
+                            <SelectItem value="0115">0115 - BANCO EXTERIOR</SelectItem>
+                            <SelectItem value="0128">0128 - BANCO CARONÍ</SelectItem>
+                            <SelectItem value="0134">0134 - BANESCO</SelectItem>
+                            <SelectItem value="0137">0137 - BANCO SOFITASA</SelectItem>
+                            <SelectItem value="0138">0138 - BANCO PLAZA</SelectItem>
+                            <SelectItem value="0146">0146 - BANGENTE</SelectItem>
+                            <SelectItem value="0151">0151 - BFC BANCO FONDO COMÚN</SelectItem>
+                            <SelectItem value="0156">0156 - 100% BANCO</SelectItem>
+                            <SelectItem value="0157">0157 - DELSUR BANCO</SelectItem>
+                            <SelectItem value="0163">0163 - BANCO DEL TESORO</SelectItem>
+                            <SelectItem value="0168">0168 - BANCRECER</SelectItem>
+                            <SelectItem value="0169">0169 - MIBANCO</SelectItem>
+                            <SelectItem value="0171">0171 - BANCO ACTIVO</SelectItem>
+                            <SelectItem value="0174">0174 - BANPLUS</SelectItem>
+                            <SelectItem value="0175">0175 - BANCO BICENTENARIO</SelectItem>
+                            <SelectItem value="0177">0177 - BANFANB</SelectItem>
+                            <SelectItem value="0191">0191 - BANCO NACIONAL DE CRÉDITO</SelectItem>
+                            <SelectItem value="0601">0601 - INSTITUTO MUNICIPAL DE CRÉDITO POPULAR</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="reference">Número de referencia</Label>
+                        <Input
+                          id="reference"
+                          placeholder="123456789"
+                          value={paymentData.reference}
+                          onChange={(e) => handlePaymentDataChange("reference", e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="receipt">Comprobante de pago</Label>
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            id="receipt"
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={handleFileUpload}
+                            required
+                            className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer h-fit"
+                          />
+                          <Upload className="w-5 h-5 text-gray-400" />
+                        </div>
+                        <p className="text-xs text-gray-500">Sube una imagen o PDF del comprobante de pago</p>
+                        {paymentData.receipt && (
+                          <p className="text-sm text-green-600">✓ Archivo seleccionado: {paymentData.receipt.name}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="nameOnCard">Nombre en la tarjeta</Label>
-                    <Input id="nameOnCard" required />
-                  </div>
-                </div>
-              )}
-              */}
-
-              {/* Formulario para pago móvil y transferencia */}
-              {(paymentMethod === "pago-movil" || paymentMethod === "transferencia") && (
-                <div className="mt-4 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bank">Banco desde donde realizaste el pago</Label>
-                    <Select onValueChange={(value) => handlePaymentDataChange("bank", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona tu banco" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0172">0172 - BANCAMIGA BANCO MICROFINANCIERO, C.A.</SelectItem>
-                        <SelectItem value="0102">0102 - BANCO DE VENEZUELA S.A.C.A.</SelectItem>
-                        <SelectItem value="0104">0104 - BANCO VENEZOLANO DE CRÉDITO, S.A.</SelectItem>
-                        <SelectItem value="0105">0105 - BANCO MERCANTIL, C.A.</SelectItem>
-                        <SelectItem value="0108">0108 - BANCO PROVINCIAL, S.A.</SelectItem>
-                        <SelectItem value="0114">0114 - BANCO DEL CARIBE C.A.</SelectItem>
-                        <SelectItem value="0115">0115 - BANCO EXTERIOR C.A.</SelectItem>
-                        <SelectItem value="0128">0128 - BANCO CARONÍ C.A.</SelectItem>
-                        <SelectItem value="0134">0134 - BANESCO BANCO, C.A.</SelectItem>
-                        <SelectItem value="0137">0137 - BANCO SOFITASA C.A.</SelectItem>
-                        <SelectItem value="0138">0138 - BANCO PLAZA C.A.</SelectItem>
-                        <SelectItem value="0146">0146 - BANCO DE LA GENTE EMPRENDEDORA BANGENTE C.A.</SelectItem>
-                        <SelectItem value="0151">0151 - BFC BANCO FONDO COMÚN C.A.</SelectItem>
-                        <SelectItem value="0156">0156 - 100% BANCO C.A.</SelectItem>
-                        <SelectItem value="0157">0157 - DELSUR BANCO C.A.</SelectItem>
-                        <SelectItem value="0163">0163 - BANCO DEL TESORO C.A.</SelectItem>
-                        <SelectItem value="0168">0168 - BANCRECER S.A. BANCO MICROFINANCIERO</SelectItem>
-                        <SelectItem value="0169">0169 - MIBANCO BANCO DE DESARROLLO C.A.</SelectItem>
-                        <SelectItem value="0171">0171 - BANCO ACTIVO C.A.</SelectItem>
-                        <SelectItem value="0174">0174 - BANPLUS C.A.</SelectItem>
-                        <SelectItem value="0175">0175 - BANCO BICENTENARIO C.A.</SelectItem>
-                        <SelectItem value="0177">0177 - BANFANB C.A.</SelectItem>
-                        <SelectItem value="0191">0191 - BANCO NACIONAL DE CRÉDITO C.A.</SelectItem>
-                        <SelectItem value="0601">0601 - INSTITUTO MUNICIPAL DE CRÉDITO POPULAR</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono desde donde realizaste el pago</Label>
-                    <Input
-                      id="phone"
-                      placeholder="+58 412-1234567"
-                      value={paymentData.phone}
-                      onChange={(e) => handlePaymentDataChange("phone", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reference">Número de referencia</Label>
-                    <Input
-                      id="reference"
-                      placeholder="123456789"
-                      value={paymentData.reference}
-                      onChange={(e) => handlePaymentDataChange("reference", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="receipt">Comprobante de pago</Label>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        id="receipt"
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={handleFileUpload}
-                        required
-                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      />
-                      <Upload className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <p className="text-xs text-gray-500">Sube una imagen o PDF del comprobante de pago</p>
-                    {paymentData.receipt && (
-                      <p className="text-sm text-green-600">✓ Archivo seleccionado: {paymentData.receipt.name}</p>
-                    )}
-                  </div>
-                </div>
+                  )}
+                </>
               )}
             </div>
 

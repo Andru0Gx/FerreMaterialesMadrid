@@ -24,17 +24,7 @@ async function verifyToken(request: Request) {
 // GET /api/bank-accounts
 export async function GET(request: Request) {
     try {
-        // Verificar autenticación
-        const decoded = await verifyToken(request)
-        if (!decoded || !["ADMIN", "SUPER_ADMIN"].includes(decoded.role)) {
-            return NextResponse.json(
-                { error: "No autorizado" },
-                { status: 401 }
-            )
-        }
-
         const accounts = await prisma.bankAccount.findMany()
-
         return NextResponse.json(accounts)
     } catch (error) {
         console.error("Error al obtener las cuentas bancarias:", error)
@@ -48,6 +38,15 @@ export async function GET(request: Request) {
 // POST /api/bank-accounts
 export async function POST(request: Request) {
     try {
+        // Verificar autenticación
+        const decoded = await verifyToken(request)
+        if (!decoded || !["ADMIN", "SUPER_ADMIN"].includes(decoded.role)) {
+            return NextResponse.json(
+                { error: "No autorizado" },
+                { status: 401 }
+            )
+        }
+
         const data = await request.json()
 
         // Validar datos requeridos
