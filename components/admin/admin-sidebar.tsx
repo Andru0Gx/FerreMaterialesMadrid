@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, Package, Users, ShieldCheck, Home } from "lucide-react"
+import { BarChart3, Package, Users, ShieldCheck, Home, CreditCard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 
@@ -26,6 +26,12 @@ const sidebarLinks = [
     title: "Usuarios",
     href: "/admin/usuarios",
     icon: Users,
+  },
+  {
+    title: "Datos Bancarios",
+    href: "/admin/datos-bancarios",
+    icon: CreditCard,
+    requiresSuperAdmin: true, // Solo superadmin puede ver este módulo
   },
   {
     title: "Administradores",

@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import crypto from 'crypto'
+import jwt from 'jsonwebtoken'
 import { Prisma, User, Admin } from '@prisma/client'
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 
 interface UserWithPassword extends User {
     password: string;
@@ -74,11 +77,19 @@ export async function POST(request: Request) {
                 )
             }
 
-            // Devolver los datos del usuario (sin la contraseña)
+            // Generar token JWT
+            const token = jwt.sign(
+                { id: user.id, role: user.role },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            )
+
+            // Devolver los datos del usuario (sin la contraseña) y el token
             const { password: _, ...userWithoutPassword } = user
             return NextResponse.json({
                 status: 'success',
-                user: userWithoutPassword
+                user: userWithoutPassword,
+                token
             })
         }
 
@@ -92,14 +103,22 @@ export async function POST(request: Request) {
                 )
             }
 
-            // Devolver los datos del administrador (sin la contraseña)
+            // Generar token JWT
+            const token = jwt.sign(
+                { id: admin.id, role: admin.role },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            )
+
+            // Devolver los datos del administrador (sin la contraseña) y el token
             const { password: _, ...adminWithoutPassword } = admin
             return NextResponse.json({
                 status: 'success',
                 user: {
                     ...adminWithoutPassword,
                     role: admin.role === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : 'ADMIN'
-                }
+                },
+                token
             })
         }
 

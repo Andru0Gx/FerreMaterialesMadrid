@@ -89,7 +89,6 @@ model OrderItem {
   id        Int            @id @default(autoincrement())
   orderId   String         @map("order_id")
   productId Int            @map("product_id")
-  variantId String?        @map("variant_id")
   quantity  Int
   price     Float
   discount  Float          @default(0)
@@ -124,6 +123,18 @@ model Promotion {
   active              Boolean        @default(true)
 
   @@map("promotions")
+}
+
+model BankAccount {
+  id            String      @id @default(uuid())
+  type          AccountType
+  bank          String
+  accountNumber String?     @map("account_number")
+  phone         String?
+  document      String      // cédula o RIF
+  accountHolder String      @map("account_holder")
+
+  @@map("bank_accounts")
 }
 
 enum Role {
@@ -161,4 +172,9 @@ enum DiscountType {
   PORCENTAJE
   FIJO
   ENVIO_GRATIS
+}
+
+enum AccountType {
+  PAGO_MOVIL
+  TRANSFERENCIA
 }
