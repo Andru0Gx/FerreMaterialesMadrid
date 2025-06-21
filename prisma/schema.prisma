@@ -81,6 +81,12 @@ model Order {
   paymentReceipt  String?     @map("payment_receipt")
   discountCode    String?     @map("discount_code")
   discountAmount  Float?      @map("discount_amount")
+
+  // Datos del pago
+  paymentMethod   AccountType? @map("payment_method")  // PAGO_MOVIL o TRANSFERENCIA
+  paymentBank     String?      @map("payment_bank")    // Banco utilizado
+  paymentReference String?     @map("payment_reference") // Número de referencia
+
   user            User?       @relation(fields: [userId], references: [id])
   shippingAddress Address?    @relation(fields: [shippingAddressId], references: [id])
   items           OrderItem[]

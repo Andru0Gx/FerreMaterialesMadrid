@@ -40,10 +40,15 @@ export async function POST(request: Request) {
     const fileUrl = `/uploads/receipts/${filename}`
 
     // Actualizar la orden con la URL del comprobante
-    await prisma.order.update({
-      where: { id: orderId },
-      data: { paymentReceipt: fileUrl }
-    })
+    if (orderId) {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          paymentReceipt: fileUrl,
+          paymentStatus: "PENDING"
+        }
+      })
+    }
 
     return NextResponse.json({ url: fileUrl })
   } catch (error) {

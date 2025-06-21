@@ -3,6 +3,7 @@ import { getOrders, getOrderById, getOrderItems, createOrder } from '@/lib/db-qu
 import prisma from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import jwt from "jsonwebtoken"
+import { AccountType, OrderStatus, PaymentStatus } from "@prisma/client"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 
@@ -92,34 +93,57 @@ export async function POST(request: Request) {
             total,
             shippingAddressId,
             paymentMethod,
+            paymentBank,
             paymentReference,
             phone,
             email,
             discount
         } = data
 
+        console.log("Payment data received:", { paymentMethod, paymentBank, paymentReference })
+
+        if (!paymentBank) {
+            return NextResponse.json({
+                error: "Datos de pago incompletos",
+                details: "Debe seleccionar un banco"
+            }, { status: 400 })
+        }
+
+        // Preparar los datos de la orden
+        const orderData: any = {
+            userId: user.id,
+            status: OrderStatus.PENDING,
+            total,
+            itemsCount: items.length,
+            paymentStatus: PaymentStatus.PENDING,
+            shippingAddressId,
+            phone: phone || user.phone,
+            email: email || user.email,
+            // Datos del pago
+            paymentMethod: paymentMethod as AccountType,
+            paymentBank,
+            paymentReference,
+            items: {
+                create: items.map((item: any) => ({
+                    productId: parseInt(item.id),
+                    quantity: item.quantity,
+                    price: item.price,
+                    discount: item.discount || 0
+                }))
+            }
+        }
+
+        // Agregar datos de descuento si existen
+        if (discount?.code) {
+            orderData.discountCode = discount.code
+        }
+        if (discount?.discountAmount) {
+            orderData.discountAmount = discount.discountAmount
+        }
+
         // Crear la orden
         const order = await prisma.order.create({
-            data: {
-                userId: user.id,
-                status: "PENDING",
-                total,
-                itemsCount: items.length,
-                paymentStatus: "PENDING",
-                shippingAddressId,
-                phone: phone || user.phone,
-                email: email || user.email,
-                discountCode: discount?.code,
-                discountAmount: discount?.discountAmount,
-                items: {
-                    create: items.map((item: any) => ({
-                        productId: parseInt(item.id),
-                        quantity: item.quantity,
-                        price: item.price,
-                        discount: item.discount || 0
-                    }))
-                }
-            },
+            data: orderData,
             include: {
                 items: true,
                 shippingAddress: true

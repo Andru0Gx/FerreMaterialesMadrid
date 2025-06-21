@@ -167,10 +167,10 @@ export default function CheckoutPage() {
       return
     }
 
-    if (!selectedBankAccount || !paymentData.receipt) {
+    if (!selectedBankAccount || !paymentData.receipt || !paymentData.bank) {
       toast({
         title: "Error",
-        description: "Debes seleccionar un método de pago y subir el comprobante",
+        description: "Debes seleccionar un método de pago, el banco y subir el comprobante",
         variant: "destructive",
       })
       return
@@ -190,6 +190,7 @@ export default function CheckoutPage() {
         total,
         shippingAddressId: selectedAddress,
         paymentMethod: selectedBankAccount.type,
+        paymentBank: paymentData.bank,
         paymentReference: paymentData.reference,
         phone: user?.phone || "",
         email: user?.email || "",
@@ -197,7 +198,7 @@ export default function CheckoutPage() {
       }
 
       const token = localStorage.getItem('token')
-      console.log("Sending order with token:", { hasToken: !!token })
+      console.log("Sending order with data:", orderData)
 
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -401,7 +402,7 @@ export default function CheckoutPage() {
                     <div className="mt-4 space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="bank">Banco desde donde realizaste el pago</Label>
-                        <Select onValueChange={(value) => handlePaymentDataChange("bank", value)}>
+                        <Select value={paymentData.bank} onValueChange={(value) => handlePaymentDataChange("bank", value)}>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecciona tu banco" />
                           </SelectTrigger>
