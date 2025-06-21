@@ -11,10 +11,12 @@ import { useCart } from "@/context/cart-context"
 import { useExchangeRate } from "@/hooks/use-exchange-rate"
 import { useToast } from "@/components/ui/use-toast"
 import { formatPrice } from "@/lib/utils"
+import { useShipping } from "@/hooks/use-shipping"
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart, discount, applyDiscount, removeDiscount } = useCart()
   const { rate } = useExchangeRate()
+  const { shippingConfig, getShippingCost } = useShipping()
   const { toast } = useToast()
   const [couponCode, setCouponCode] = useState("")
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
@@ -23,7 +25,7 @@ export default function CartPage() {
   const discountAmount = discount?.discountAmount || 0
   const subtotalAfterDiscount = subtotal - discountAmount
   const tax = subtotalAfterDiscount * 0.16 // 16% de impuesto
-  const shipping = subtotalAfterDiscount > 50 ? 0 : 10 // Envío gratis en compras mayores a $50
+  const shipping = getShippingCost(subtotalAfterDiscount)
   const total = subtotalAfterDiscount + tax + shipping
 
   const handleApplyCoupon = async () => {
@@ -199,7 +201,16 @@ export default function CartPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Envío</span>
-                <span>{shipping === 0 ? "Gratis" : formatPrice(shipping, rate).combined}</span>
+                <div className="text-right">
+                  {shippingConfig.isActive ? (
+                    <div className="text-green-600">Gratis</div>
+                  ) : (
+                    <>
+                      <div>{formatPrice(shipping, rate).usd}</div>
+                      <div className="text-xs text-gray-500">{formatPrice(shipping, rate).bs}</div>
+                    </>
+                  )}
+                </div>
               </div>
 
               <Separator />
@@ -221,26 +232,29 @@ export default function CartPage() {
                     <Input
                       placeholder="Código de descuento"
                       value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                      style={{ textTransform: 'uppercase' }}
+                      onChange={(e) => {
+                        if (e.target.value.toUpperCase() !== 'ENVIO_GRATIS_GLOBAL') {
+                          setCouponCode(e.target.value)
+                        }
+                      }}
                     />
                     <Button
                       variant="outline"
                       onClick={handleApplyCoupon}
-                      disabled={isApplyingCoupon}
+                      disabled={isApplyingCoupon || couponCode.toUpperCase() === 'ENVIO_GRATIS_GLOBAL'}
                     >
-                      {isApplyingCoupon ? "Aplicando..." : "Aplicar"}
+                      Aplicar
                     </Button>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <div className="flex items-center text-green-700">
-                    <Tag className="w-4 h-4 mr-2" />
-                    <span className="font-medium">{discount.code}</span>
+                <div className="flex items-center justify-between bg-green-50 p-2 rounded">
+                  <div className="flex items-center text-green-600">
+                    <Tag className="w-4 h-4 mr-1" />
+                    <span className="text-sm">{discount.code}</span>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={handleRemoveCoupon} className="text-green-700">
-                    Remover
+                  <Button variant="ghost" size="sm" onClick={handleRemoveCoupon}>
+                    Quitar
                   </Button>
                 </div>
               )}

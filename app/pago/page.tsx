@@ -17,6 +17,7 @@ import { useCart } from "@/context/cart-context"
 import { useAuth } from "@/hooks/use-auth"
 import { useExchangeRate } from "@/hooks/use-exchange-rate"
 import { formatPrice } from "@/lib/utils"
+import { useShipping } from "@/hooks/use-shipping"
 
 interface Address {
   id: string
@@ -44,6 +45,7 @@ export default function CheckoutPage() {
   const { cart, clearCart, discount } = useCart()
   const { user, loading } = useAuth()
   const { rate } = useExchangeRate()
+  const { shippingConfig, getShippingCost } = useShipping()
   const [paymentMethod, setPaymentMethod] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedAddress, setSelectedAddress] = useState("")
@@ -130,7 +132,7 @@ export default function CheckoutPage() {
   const discountAmount = discount?.discountAmount || 0
   const subtotalAfterDiscount = subtotal - discountAmount
   const tax = subtotalAfterDiscount * 0.16 // 16% de impuesto
-  const shipping = subtotalAfterDiscount > 50 ? 0 : 10 // Envío gratis en compras mayores a $50
+  const shipping = getShippingCost(subtotalAfterDiscount)
   const total = subtotalAfterDiscount + tax + shipping
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -475,9 +477,9 @@ export default function CheckoutPage() {
 
             <Separator className="my-4" />
 
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal</span>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span>Subtotal</span>
                 <div className="text-right">
                   <div>{formatPrice(subtotal, rate).usd}</div>
                   <div className="text-xs text-gray-500">{formatPrice(subtotal, rate).bs}</div>
@@ -485,8 +487,11 @@ export default function CheckoutPage() {
               </div>
 
               {discount && (
-                <div className="flex justify-between text-green-600">
-                  <span>Descuento ({discount.code})</span>
+                <div className="flex justify-between text-sm text-green-600">
+                  <span className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    Descuento ({discount.code})
+                  </span>
                   <div className="text-right">
                     <div>-{formatPrice(discountAmount, rate).usd}</div>
                     <div className="text-xs">-{formatPrice(discountAmount, rate).bs}</div>
@@ -494,26 +499,35 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              <div className="flex justify-between">
-                <span className="text-gray-600">Impuestos (16%)</span>
+              <div className="flex justify-between text-sm">
+                <span>IVA (16%)</span>
                 <div className="text-right">
                   <div>{formatPrice(tax, rate).usd}</div>
                   <div className="text-xs text-gray-500">{formatPrice(tax, rate).bs}</div>
                 </div>
               </div>
 
-              <div className="flex justify-between">
-                <span className="text-gray-600">Envío</span>
-                <span>{shipping === 0 ? "Gratis" : formatPrice(shipping, rate).combined}</span>
+              <div className="flex justify-between text-sm">
+                <span>Envío</span>
+                <div className="text-right">
+                  {shippingConfig.isActive ? (
+                    <div className="text-green-600">Gratis</div>
+                  ) : (
+                    <>
+                      <div>{formatPrice(shipping, rate).usd}</div>
+                      <div className="text-xs text-gray-500">{formatPrice(shipping, rate).bs}</div>
+                    </>
+                  )}
+                </div>
               </div>
 
               <Separator />
 
-              <div className="flex justify-between font-bold">
+              <div className="flex justify-between font-medium">
                 <span>Total</span>
                 <div className="text-right">
                   <div>{formatPrice(total, rate).usd}</div>
-                  <div className="text-sm text-gray-600">{formatPrice(total, rate).bs}</div>
+                  <div className="text-sm text-gray-500">{formatPrice(total, rate).bs}</div>
                 </div>
               </div>
             </div>
