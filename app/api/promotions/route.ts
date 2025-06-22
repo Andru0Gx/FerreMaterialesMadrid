@@ -66,6 +66,16 @@ export async function POST(request: Request) {
 
         console.log('Datos a guardar en Prisma:', promoData); // Debug log
 
+        // Si ya existe una promoción con el mismo couponCode, actualízala en vez de crearla
+        const existing = await prisma.promotion.findUnique({ where: { couponCode } })
+        if (existing) {
+            const updated = await prisma.promotion.update({
+                where: { id: existing.id },
+                data: promoData
+            })
+            return NextResponse.json(updated)
+        }
+
         // Crear la promoción en Prisma
         const promo = await prisma.promotion.create({
             data: promoData
@@ -175,4 +185,4 @@ export async function DELETE(request: Request) {
         console.error('Error al eliminar promoción:', error)
         return NextResponse.json({ status: 'error', message: 'Error al eliminar promoción', error: error instanceof Error ? error.message : 'Error desconocido' }, { status: 500 })
     }
-} 
+}

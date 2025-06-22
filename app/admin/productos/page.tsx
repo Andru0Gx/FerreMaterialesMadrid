@@ -1169,7 +1169,7 @@ export default function ProductsPage() {
                       </div>
                     </th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer">
-                      <div className="flex items-center">Usos / Fechas</div>
+                      <div className="flex items-center"> Usos restantes / Fecha final</div>
                     </th>
                     <th
                       className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
@@ -1212,7 +1212,7 @@ export default function ProductsPage() {
 
                           <td className="px-4 py-4 text-sm text-gray-500">
                             {promotion.maxUsage ? (
-                              `0 / ${promotion.maxUsage}`
+                              `${promotion.maxUsage}`
                             ) : promotion.startDate && promotion.endDate ? (
                               new Date(promotion.startDate).toLocaleDateString('es-VE', {
                                 day: '2-digit',
@@ -1498,7 +1498,6 @@ export default function ProductsPage() {
                   <SelectContent>
                     <SelectItem value="PORCENTAJE">Porcentaje</SelectItem>
                     <SelectItem value="FIJO">Valor fijo</SelectItem>
-                    <SelectItem value="ENVIO_GRATIS">Envío gratis</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
