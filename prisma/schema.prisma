@@ -74,6 +74,10 @@ model Order {
   userId          String?     @map("user_id")
   status          OrderStatus
   total           Float
+  subtotal         Float?      @map("subtotal")         // Monto subtotal antes de descuentos e impuestos
+  discountAmount   Float?      @map("discount_amount")   // Monto de descuento aplicado
+  taxAmount        Float?      @map("tax_amount")        // Monto de IVA/impuesto aplicado
+  shippingAmount   Float?      @map("shipping_amount")   // Monto de envío aplicado
   itemsCount      Int         @map("items_count")
   phone           String?
   email           String?
@@ -83,7 +87,6 @@ model Order {
   shippingAddressId String?   @map("shipping_address_id")
   paymentReceipt  String?     @map("payment_receipt")
   discountCode    String?     @map("discount_code")
-  discountAmount  Float?      @map("discount_amount")
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 

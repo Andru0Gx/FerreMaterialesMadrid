@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { getOrders, getOrderById, getOrderItems, createOrder } from '@/lib/db-queries'
 import prisma from "@/lib/prisma"
 import jwt from "jsonwebtoken"
 import { AccountType, OrderStatus, PaymentStatus } from "@prisma/client"
@@ -110,8 +109,13 @@ export async function POST(request: Request) {
             }
             // Generar número de orden
             const orderNumber = await generateOrderNumber();
-            // Calcular total
-            const total = reqData.items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+            // Calcular montos
+            const subtotal = reqData.items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+            const discountAmount = reqData.discount?.discountAmount || 0;
+            const subtotalAfterDiscount = subtotal - discountAmount;
+            const taxAmount = subtotalAfterDiscount * 0.16;
+            const shippingAmount = reqData.shippingAmount || 0; // Si tienes lógica de envío física, cámbiala aquí
+            const total = subtotalAfterDiscount + taxAmount + shippingAmount;
             // Crear la orden
             const itemsToCreate = reqData.items.map((item: any) => {
                 const prodId = item.productId !== undefined ? item.productId : item.id;
@@ -130,6 +134,10 @@ export async function POST(request: Request) {
                 data: {
                     orderNumber,
                     status: OrderStatus.COMPLETED,
+                    subtotal,
+                    discountAmount,
+                    taxAmount,
+                    shippingAmount,
                     total,
                     itemsCount: reqData.items.length,
                     paymentStatus: PaymentStatus.PAID,
@@ -145,6 +153,14 @@ export async function POST(request: Request) {
                 } as any, // Forzar el tipo para aceptar notes
                 include: {
                     items: true
+                }
+            });
+            // Crear OrderHistory inicial
+            await prisma.orderHistory.create({
+                data: {
+                    orderId: order.id,
+                    status: order.status,
+                    paymentStatus: order.paymentStatus
                 }
             });
             // Actualizar stock
@@ -177,12 +193,24 @@ export async function POST(request: Request) {
         // Generar número de orden
         const orderNumber = await generateOrderNumber()
 
+        // Calcular montos
+        const subtotal = data.items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+        const discountAmount = data.discount?.discountAmount || 0;
+        const subtotalAfterDiscount = subtotal - discountAmount;
+        const taxAmount = subtotalAfterDiscount * 0.16;
+        const shippingAmount = data.shippingAmount || 0;
+        const total = subtotalAfterDiscount + taxAmount + shippingAmount;
+
         // Preparar los datos de la orden
         const orderData: any = {
             orderNumber,
             userId: user.id,
             status: OrderStatus.PENDING,
-            total: data.total,
+            subtotal,
+            discountAmount,
+            taxAmount,
+            shippingAmount,
+            total,
             itemsCount: data.items.length,
             paymentStatus: PaymentStatus.PENDING,
             shippingAddressId: data.shippingAddressId,
@@ -211,14 +239,24 @@ export async function POST(request: Request) {
             orderData.discountAmount = data.discount.discountAmount
         }
 
-        // Crear la orden
-        const order = await prisma.order.create({
-            data: orderData,
-            include: {
-                items: true,
-                shippingAddress: true
-            }
-        })
+        // Crear la orden y el OrderHistory inicial en una transacción
+        const result = await prisma.$transaction(async (tx) => {
+            const order = await tx.order.create({
+                data: orderData,
+                include: {
+                    items: true,
+                    shippingAddress: true
+                }
+            });
+            await tx.orderHistory.create({
+                data: {
+                    orderId: order.id,
+                    status: order.status,
+                    paymentStatus: order.paymentStatus
+                }
+            });
+            return order;
+        });
 
         // Si la orden tiene código de descuento por uso, descuéntale 1 y desactívalo si llega a 0
         if (data.discount?.code) {
@@ -249,7 +287,7 @@ export async function POST(request: Request) {
             })
         }
 
-        return NextResponse.json(order)
+        return NextResponse.json(result)
     } catch (error) {
         console.error("Error creating order:", error)
         return NextResponse.json(
