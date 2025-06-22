@@ -45,11 +45,8 @@ import {
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
-import { getProducts } from "@/lib/data"
 import { useRouter } from "next/navigation"
 import type { Order } from "@/lib/types"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
 import Image from "next/image"
 
 // Actualizar las interfaces
@@ -974,7 +971,7 @@ export default function OrdersPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleViewInvoice(order)}>
                             <FileText className="mr-2 h-4 w-4" />
-                            Ver voucher de compra
+                            Ver nota de compra
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1153,7 +1150,7 @@ export default function OrdersPage() {
                       <tbody>
                         {selectedOrder.items.map((item) => (
                           <tr key={`detail-item-${item.id}`} className="border-b">
-                            <td className="py-3 px-4">{allProducts.find(p => p.id === item.productId)?.name || "Producto desconocido"}</td>
+                            <td className="py-3 px-4">{allProducts.find(product => product.id === String(item.productId))?.name || "Nombre no disponible"}</td>
                             <td className="text-right py-3 px-4">{item.quantity}</td>
                             <td className="text-right py-3 px-4">{formatCurrency(item.price)}</td>
                             <td className="text-right py-3 px-4">{formatCurrency(item.price * item.quantity)}</td>
@@ -1272,68 +1269,68 @@ export default function OrdersPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center justify-between">
-                  <span>Voucher de Compra {selectedOrder.orderNumber}</span>
+                  <span>NOTA DE COMPRA {selectedOrder.orderNumber}</span>
                   <Button variant="outline" size="sm" onClick={handlePrintInvoice}>
                     <Printer className="h-4 w-4 mr-2" />
-                    Imprimir Voucher
+                    Imprimir Nota
                   </Button>
                 </DialogTitle>
               </DialogHeader>
 
-              <div ref={invoiceRef} className="p-6 bg-white">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <div ref={invoiceRef} className="p-8 bg-gray-50 rounded-lg shadow-md">
+                <div className="flex justify-between items-center mb-8 border-b pb-4">
                   <div className="flex items-center">
-                    <div className="text-2xl font-bold tracking-tight">FERRE MATERIALES MADRID</div>
+                    <div className="text-3xl font-extrabold tracking-tight text-gray-800">FERRE MATERIALES MADRID</div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">VOUCHER DE COMPRA {selectedOrder.orderNumber}</p>
-                    <p>Fecha: {new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
+                    <p className="font-bold text-lg text-gray-700">{selectedOrder.orderNumber}</p>
+                    <p className="text-sm text-gray-500">Fecha: {new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div className="space-y-1">
-                    <p className="font-bold text-sm text-gray-500">DATOS DE LA EMPRESA</p>
-                    <p>RIF: J-123456789</p>
-                    <p>Av. Principal, Maturín, Venezuela</p>
-                    <p>Teléfono: +58 412 123 4567</p>
-                    <p>Email: info@ferremadrid.com</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                  <div className="space-y-2">
+                    <p className="font-bold text-sm text-gray-600">DATOS DE LA EMPRESA</p>
+                    <p className="text-sm text-gray-500">RIF: J-123456789</p>
+                    <p className="text-sm text-gray-500">Av. Principal, Maturín, Venezuela</p>
+                    <p className="text-sm text-gray-500">Teléfono: +58 412 123 4567</p>
+                    <p className="text-sm text-gray-500">Email: info@ferremadrid.com</p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="font-bold text-sm text-gray-500">CLIENTE</p>
-                    <p>
+                  <div className="space-y-2">
+                    <p className="font-bold text-sm text-gray-600">CLIENTE</p>
+                    <p className="text-sm text-gray-500">
                       <span className="font-medium">Nombre:</span> {selectedOrder.user?.name}
                     </p>
                     {selectedOrder.user?.email && (
-                      <p>
+                      <p className="text-sm text-gray-500">
                         <span className="font-medium">Email:</span> {selectedOrder.user?.email}
                       </p>
                     )}
-                    <p>
+                    <p className="text-sm text-gray-500">
                       <span className="font-medium">Teléfono:</span> {selectedOrder.user?.phone}
                     </p>
                     {selectedOrder.shippingAddress && (
-                      <p>
+                      <p className="text-sm text-gray-500">
                         <span className="font-medium">Dirección:</span> {selectedOrder.shippingAddress.address}
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="border rounded-md overflow-hidden mb-6">
+                <div className="border rounded-md overflow-hidden mb-8">
                   <table className="w-full border-collapse">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-100">
                       <tr>
-                        <th className="text-left py-2 px-4 border-b">Producto</th>
-                        <th className="text-right py-2 px-4 border-b">Cantidad</th>
-                        <th className="text-right py-2 px-4 border-b">Precio Unit.</th>
-                        <th className="text-right py-2 px-4 border-b">Total</th>
+                        <th className="text-left py-3 px-4 border-b text-sm text-gray-600">Producto</th>
+                        <th className="text-right py-3 px-4 border-b text-sm text-gray-600">Cantidad</th>
+                        <th className="text-right py-3 px-4 border-b text-sm text-gray-600">Precio Unit.</th>
+                        <th className="text-right py-3 px-4 border-b text-sm text-gray-600">Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedOrder.items.map((item) => (
                         <tr key={`invoice-item-${item.id}`} className="bg-white">
-                          <td className="py-2 px-4 border-b">{allProducts.find(p => p.id === item.productId)?.name || "Producto desconocido"}</td>
+                          <td className="py-2 px-4 border-b">{allProducts.find(product => product.id === String(item.productId))?.name || "Nombre no disponible"}</td>
                           <td className="text-right py-2 px-4 border-b">{item.quantity}</td>
                           <td className="text-right py-2 px-4 border-b">{formatCurrency(item.price)}</td>
                           <td className="text-right py-2 px-4 border-b">
@@ -1345,54 +1342,44 @@ export default function OrdersPage() {
                   </table>
                 </div>
 
-                <div className="flex justify-end mb-6">
+                <div className="flex justify-end mb-8">
                   <div className="w-64">
-                    <div className="flex justify-between py-1">
-                      <span className="font-medium">Subtotal:</span>
-                      <span>{formatCurrency(selectedOrder.total)}</span>
+                    <div className="flex justify-between py-2">
+                      <span className="font-medium text-gray-600">Subtotal:</span>
+                      <span className="text-gray-700">{formatCurrency(selectedOrder.total)}</span>
                     </div>
-                    <div className="flex justify-between py-1">
-                      <span className="font-medium">IVA (16%):</span>
-                      <span>{formatCurrency(selectedOrder.total * 0.16)}</span>
+                    <div className="flex justify-between py-2">
+                      <span className="font-medium text-gray-600">IVA (16%):</span>
+                      <span className="text-gray-700">{formatCurrency(selectedOrder.total * 0.16)}</span>
                     </div>
-                    <div className="flex justify-between py-1 border-t mt-1 pt-1">
-                      <span className="font-bold">TOTAL:</span>
-                      <span className="font-bold">{formatCurrency(selectedOrder.total * 1.16)}</span>
+                    <div className="flex justify-between py-2 border-t mt-2 pt-2">
+                      <span className="font-bold text-gray-800">TOTAL:</span>
+                      <span className="font-bold text-gray-800">{formatCurrency(selectedOrder.total * 1.16)}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                   <div>
-                    <h3 className="font-bold mb-2 text-sm text-gray-500">FORMA DE PAGO</h3>
-                    <p>{translatePaymentMethod(selectedOrder.paymentMethod)}</p>
+                    <h3 className="font-bold mb-2 text-sm text-gray-600">FORMA DE PAGO</h3>
+                    <p className="text-sm text-gray-500">{translatePaymentMethod(selectedOrder.paymentMethod)}</p>
                     {selectedOrder.paymentReference && (
-                      <p>Referencia: {selectedOrder.paymentReference}</p>
+                      <p className="text-sm text-gray-500">Referencia: {selectedOrder.paymentReference}</p>
                     )}
                   </div>
                   {selectedOrder.notes && (
                     <div>
-                      <h3 className="font-bold mb-2 text-sm text-gray-500">NOTAS</h3>
-                      <p>{selectedOrder.notes}</p>
+                      <h3 className="font-bold mb-2 text-sm text-gray-600">NOTAS</h3>
+                      <p className="text-sm text-gray-500">{selectedOrder.notes}</p>
                     </div>
                   )}
                 </div>
 
-                <div className="text-center text-sm mt-10 pt-4 border-t">
-                  <p className="mb-1">Gracias por su compra</p>
-                  <p>Este documento es un voucher válido</p>
+                <div className="text-center text-sm mt-12 pt-4 border-t">
+                  <p className="mb-2 text-gray-600">Gracias por su compra</p>
+                  <p className="text-gray-500">Este documento es una nota válida</p>
                 </div>
               </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsInvoiceOpen(false)}>
-                  Cerrar
-                </Button>
-                <Button onClick={handlePrintInvoice}>
-                  <Printer className="h-4 w-4 mr-2" />
-                  Imprimir Voucher
-                </Button>
-              </DialogFooter>
             </>
           )}
         </DialogContent>
