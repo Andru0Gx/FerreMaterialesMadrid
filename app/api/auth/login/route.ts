@@ -77,8 +77,6 @@ export async function POST(request: Request) {
                 )
             }
 
-            console.log("Generating token for user:", { id: user.id, role: user.role })
-
             // Generar token JWT
             const token = jwt.sign(
                 { id: user.id, role: user.role },
@@ -93,12 +91,6 @@ export async function POST(request: Request) {
                 user: userWithoutPassword,
                 token
             }
-
-            console.log("Login response:", {
-                userId: user.id,
-                role: user.role,
-                tokenExists: !!token
-            })
 
             return NextResponse.json(response)
         }
@@ -133,7 +125,6 @@ export async function POST(request: Request) {
         }
 
     } catch (error) {
-        console.error('Error al iniciar sesión:', error)
         return NextResponse.json(
             {
                 status: 'error',
