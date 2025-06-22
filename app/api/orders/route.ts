@@ -17,8 +17,13 @@ export async function GET(request: Request) {
             const order = await prisma.order.findUnique({
                 where: { id },
                 include: {
-                    items: includeItems,
-                    shippingAddress: true
+                    items: {
+                        include: {
+                            product: true
+                        }
+                    },
+                    shippingAddress: true,
+                    user: true
                 }
             })
 
@@ -34,8 +39,16 @@ export async function GET(request: Request) {
 
         const orders = await prisma.order.findMany({
             include: {
-                items: includeItems,
-                shippingAddress: true
+                items: {
+                    include: {
+                        product: true
+                    }
+                },
+                shippingAddress: true,
+                user: true
+            },
+            orderBy: {
+                createdAt: 'desc'
             }
         })
         return NextResponse.json(orders)
@@ -70,37 +83,81 @@ async function verifyToken(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const decoded = await verifyToken(request)
-        if (!decoded) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+        let decodedUser = null;
+        let foundUser = null;
+        try {
+            decodedUser = await verifyToken(request);
+        } catch { }
+        if (decodedUser) {
+            foundUser = await prisma.user.findUnique({ where: { id: decodedUser.id } });
+        }
+        const reqData = await request.json();
+        // Si no hay usuario, es venta en tienda física
+        if (!foundUser) {
+            // Validar datos mínimos
+            if (!reqData.user?.name || !reqData.items || !Array.isArray(reqData.items) || reqData.items.length === 0) {
+                return NextResponse.json({ error: "Datos insuficientes para venta en tienda física" }, { status: 400 });
+            }
+            // Generar número de orden
+            const orderNumber = await generateOrderNumber();
+            // Calcular total
+            const total = reqData.items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
+            // Crear la orden
+            const itemsToCreate = reqData.items.map((item: any) => {
+                const prodId = item.productId !== undefined ? item.productId : item.id;
+                const parsedId = parseInt(prodId);
+                if (isNaN(parsedId)) {
+                    throw new Error(`ID de producto inválido: ${prodId}`);
+                }
+                return {
+                    productId: parsedId,
+                    quantity: item.quantity,
+                    price: item.price,
+                    discount: item.discount || 0
+                };
+            });
+            const order = await prisma.order.create({
+                data: {
+                    orderNumber,
+                    status: OrderStatus.COMPLETED,
+                    total,
+                    itemsCount: reqData.items.length,
+                    paymentStatus: PaymentStatus.PAID,
+                    phone: reqData.user.phone || null,
+                    paymentMethod: reqData.paymentMethod || null,
+                    paymentReference: reqData.paymentReference || null,
+                    notes: reqData.notes || null, // <-- Campo de notas
+                    isInStore: reqData.isInStore === true, // Guardar si es venta en tienda
+                    nombre: reqData.nombre || reqData.user.name || null, // Guardar nombre del cliente en tienda
+                    items: {
+                        create: itemsToCreate
+                    }
+                } as any, // Forzar el tipo para aceptar notes
+                include: {
+                    items: true
+                }
+            });
+            // Actualizar stock
+            for (const item of itemsToCreate) {
+                await prisma.product.update({
+                    where: { id: item.productId },
+                    data: { stock: { decrement: item.quantity } }
+                });
+            }
+            return NextResponse.json(order);
         }
 
         // Verificar que el usuario existe
-        const user = await prisma.user.findUnique({
-            where: { id: decoded.id }
-        })
-
+        const user = foundUser;
         if (!user) {
             return NextResponse.json({
                 error: "Usuario no encontrado",
-                details: `No se encontró un usuario con el ID: ${decoded.id}`
+                details: `No se encontró un usuario con el ID: ${decodedUser?.id}`
             }, { status: 404 })
         }
+        const data = reqData;
 
-        const data = await request.json()
-        const {
-            items,
-            total,
-            shippingAddressId,
-            paymentMethod,
-            paymentBank,
-            paymentReference,
-            phone,
-            email,
-            discount
-        } = data
-
-        if (!paymentBank) {
+        if (!data.paymentBank) {
             return NextResponse.json({
                 error: "Datos de pago incompletos",
                 details: "Debe seleccionar un banco"
@@ -115,18 +172,19 @@ export async function POST(request: Request) {
             orderNumber,
             userId: user.id,
             status: OrderStatus.PENDING,
-            total,
-            itemsCount: items.length,
+            total: data.total,
+            itemsCount: data.items.length,
             paymentStatus: PaymentStatus.PENDING,
-            shippingAddressId,
-            phone: phone || user.phone,
-            email: email || user.email,
+            shippingAddressId: data.shippingAddressId,
+            phone: data.phone || user.phone,
+            email: data.email || user.email,
             // Datos del pago
-            paymentMethod: paymentMethod as AccountType,
-            paymentBank,
-            paymentReference,
+            paymentMethod: data.paymentMethod as AccountType,
+            paymentBank: data.paymentBank,
+            paymentReference: data.paymentReference,
+            notes: data.notes || null,
             items: {
-                create: items.map((item: any) => ({
+                create: data.items.map((item: any) => ({
                     productId: parseInt(item.id),
                     quantity: item.quantity,
                     price: item.price,
@@ -136,11 +194,11 @@ export async function POST(request: Request) {
         }
 
         // Agregar datos de descuento si existen
-        if (discount?.code) {
-            orderData.discountCode = discount.code
+        if (data.discount?.code) {
+            orderData.discountCode = data.discount.code
         }
-        if (discount?.discountAmount) {
-            orderData.discountAmount = discount.discountAmount
+        if (data.discount?.discountAmount) {
+            orderData.discountAmount = data.discount.discountAmount
         }
 
         // Crear la orden
@@ -153,7 +211,7 @@ export async function POST(request: Request) {
         })
 
         // Actualizar el stock de los productos
-        for (const item of items) {
+        for (const item of data.items) {
             await prisma.product.update({
                 where: { id: parseInt(item.id) },
                 data: {
@@ -172,4 +230,4 @@ export async function POST(request: Request) {
             { status: 500 }
         )
     }
-} 
+}

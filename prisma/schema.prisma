@@ -77,6 +77,8 @@ model Order {
   itemsCount      Int         @map("items_count")
   phone           String?
   email           String?
+  nombre          String?     @map("store_customer_name") // Nombre del cliente en tienda física
+  isInStore       Boolean     @default(false) @map("is_in_store") // True: venta en tienda, False: venta online
   paymentStatus   PaymentStatus @default(PENDING) @map("payment_status")
   shippingAddressId String?   @map("shipping_address_id")
   paymentReceipt  String?     @map("payment_receipt")
@@ -90,11 +92,27 @@ model Order {
   paymentBank     String?      @map("payment_bank")    // Banco utilizado
   paymentReference String?     @map("payment_reference") // Número de referencia
 
+  notes           String?      @map("notes") // Campo para notas
+
   user            User?       @relation(fields: [userId], references: [id])
   shippingAddress Address?    @relation(fields: [shippingAddressId], references: [id])
   items           OrderItem[]
+  histories       OrderHistory[]
 
   @@map("orders")
+}
+
+// Historial de cambios de estado y pago del pedido
+model OrderHistory {
+  id            Int            @id @default(autoincrement())
+  orderId       String         @map("order_id")
+  status        OrderStatus?
+  paymentStatus PaymentStatus?
+  changedAt     DateTime       @default(now()) @map("changed_at")
+
+  order         Order          @relation(fields: [orderId], references: [id])
+
+  @@map("order_histories")
 }
 
 model OrderItem {
@@ -171,7 +189,6 @@ enum OrderStatus {
   COMPLETED
   CANCELLED
   SHIPPED
-  DELIVERED
 }
 
 enum PaymentStatus {
@@ -189,4 +206,7 @@ enum DiscountType {
 enum AccountType {
   PAGO_MOVIL
   TRANSFERENCIA
+  EFECTIVO
+  TARJETA
+  OTRO
 }

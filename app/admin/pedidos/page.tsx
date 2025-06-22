@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import {
   Dialog,
   DialogContent,
@@ -39,137 +39,80 @@ import {
   ChevronUp,
   ChevronDown,
   MoreHorizontal,
-  ArrowUpDown
+  ArrowUpDown,
+  Check,
+  X
 } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { getProducts } from "@/lib/data"
+import { useRouter } from "next/navigation"
+import type { Order } from "@/lib/types"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
+import Image from "next/image"
 
-// Mock orders data
-const orders = [
-  {
-    id: "ORD-001",
-    customer: {
-      name: "Juan Pérez",
-      email: "juan.perez@example.com",
-      phone: "+58 412 123 4567",
-      address: "Calle Principal 123, Maturín, Venezuela",
-    },
-    date: "2023-05-10",
-    amount: 125.99,
-    status: "Completado",
-    paymentMethod: "Transferencia",
-    paymentStatus: "Pagado",
-    voucherUrl: "/placeholder.svg?height=400&width=300&text=Comprobante",
-    referenceNumber: "TX123456789",
-    products: [
-      { id: "taladro-percutor-750w", name: "Taladro Percutor Profesional 750W", quantity: 1, price: 89.99 },
-      { id: "set-destornilladores-precision", name: "Set de Destornilladores de Precisión", quantity: 1, price: 24.99 },
-    ],
-    notes: "Cliente frecuente, entrega sin problemas.",
-    inStore: false,
-  },
-  {
-    id: "ORD-002",
-    customer: {
-      name: "María López",
-      email: "maria.lopez@example.com",
-      phone: "+58 412 987 6543",
-      address: "Avenida Bolívar 456, Maturín, Venezuela",
-    },
-    date: "2023-05-09",
-    amount: 89.99,
-    status: "Enviado",
-    paymentMethod: "Efectivo",
-    paymentStatus: "Pagado",
-    voucherUrl: null,
-    referenceNumber: null,
-    products: [
-      { id: "sierra-circular-1200w", name: "Sierra Circular 1200W con Guía Láser", quantity: 1, price: 129.99 },
-    ],
-    notes: "",
-    inStore: false,
-  },
-  {
-    id: "ORD-003",
-    customer: {
-      name: "Carlos Rodríguez",
-      email: "carlos.rodriguez@example.com",
-      phone: "+58 414 555 1234",
-      address: "Calle Miranda 789, Maturín, Venezuela",
-    },
-    date: "2023-05-08",
-    amount: 54.98,
-    status: "Procesando",
-    paymentMethod: "Transferencia",
-    paymentStatus: "Pendiente",
-    voucherUrl: "/placeholder.svg?height=400&width=300&text=Comprobante",
-    referenceNumber: "TX987654321",
-    products: [
-      { id: "martillo-carpintero-fibra", name: "Martillo de Carpintero con Mango de Fibra", quantity: 1, price: 19.99 },
-      { id: "pintura-interior-blanco-mate", name: "Pintura Interior Blanco Mate 15L", quantity: 1, price: 39.99 },
-    ],
-    notes: "Cliente solicitó entrega en horario de tarde.",
-    inStore: false,
-  },
-  {
-    id: "ORD-004",
-    customer: {
-      name: "Ana Martínez",
-      email: "ana.martinez@example.com",
-      phone: "+58 416 789 0123",
-      address: "Urbanización El Centro, Casa 12, Maturín, Venezuela",
-    },
-    date: "2023-05-07",
-    amount: 69.99,
-    status: "Completado",
-    paymentMethod: "Tarjeta",
-    paymentStatus: "Pagado",
-    voucherUrl: null,
-    referenceNumber: null,
-    products: [
-      {
-        id: "grifo-cocina-monomando",
-        name: "Grifo de Cocina Monomando con Ducha Extraíble",
-        quantity: 1,
-        price: 69.99,
-      },
-    ],
-    notes: "",
-    inStore: true,
-  },
-  {
-    id: "ORD-005",
-    customer: {
-      name: "Pedro Sánchez",
-      email: "pedro.sanchez@example.com",
-      phone: "+58 424 321 6547",
-      address: "Avenida Libertador 234, Maturín, Venezuela",
-    },
-    date: "2023-05-06",
-    amount: 34.99,
-    status: "Enviado",
-    paymentMethod: "Transferencia",
-    paymentStatus: "Pagado",
-    voucherUrl: "/placeholder.svg?height=400&width=300&text=Comprobante",
-    referenceNumber: "TX456789123",
-    products: [
-      {
-        id: "tijeras-podar-profesionales",
-        name: "Tijeras de Podar Profesionales con Mango Ergonómico",
-        quantity: 1,
-        price: 34.99,
-      },
-    ],
-    notes: "",
-    inStore: false,
-  },
-]
+// Actualizar las interfaces
+interface OrderItem {
+  id: number
+  quantity: number
+  price: number
+  discount: number
+  product: {
+    id: number
+    name: string
+    sku: string
+    price: number
+  }
+}
+
+type OrderStatus = "PENDING" | "PROCESSING" | "SHIPPED" | "CANCELLED" | "COMPLETED"
+type PaymentStatus = "PENDING" | "PAID" | "FAILED"
+type PaymentMethod = "PAGO_MOVIL" | "TRANSFERENCIA"
+
+type SortKey = "orderNumber" | "customer" | "date" | "total" | "status" | "paymentStatus";
+
+type SortConfig = {
+  key: SortKey;
+  direction: "asc" | "desc";
+};
+
+// Actualizar las funciones de traducción
+const translateOrderStatus = (status: OrderStatus): string => {
+  const translations: Record<OrderStatus, string> = {
+    PENDING: "Pendiente",
+    PROCESSING: "Procesando",
+    SHIPPED: "Enviado",
+    CANCELLED: "Cancelado",
+    COMPLETED: "Completado",
+  };
+  return translations[status] || status;
+};
+
+const translatePaymentStatus = (status: PaymentStatus): string => {
+  const translations: Record<PaymentStatus, string> = {
+    PENDING: "Pendiente",
+    PAID: "Aprobado",
+    FAILED: "Fallido",
+  };
+  return translations[status] || status;
+};
+
+const translatePaymentMethod = (method: PaymentMethod | null): string => {
+  if (!method) return "No especificado";
+  const translations: Record<PaymentMethod, string> = {
+    PAGO_MOVIL: "Pago Móvil",
+    TRANSFERENCIA: "Transferencia",
+  };
+  return translations[method] || method;
+};
 
 export default function OrdersPage() {
+  const router = useRouter()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [selectedOrder, setSelectedOrder] = useState<any>(null)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [isOrderDetailOpen, setIsOrderDetailOpen] = useState(false)
   const [isAddInStoreOrderOpen, setIsAddInStoreOrderOpen] = useState(false)
   const [isUpdateStatusOpen, setIsUpdateStatusOpen] = useState(false)
@@ -181,80 +124,19 @@ export default function OrdersPage() {
   const [customerName, setCustomerName] = useState<string>("")
   const [customerPhone, setCustomerPhone] = useState<string>("")
   const [orderNotes, setOrderNotes] = useState<string>("")
-  const [sortColumn, setSortColumn] = useState<string | null>(null)
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+  const [sortColumn, setSortColumn] = useState<SortKey>("orderNumber")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
   const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null)
   const [editingProductQuantity, setEditingProductQuantity] = useState<number>(1)
-  const [ordersData, setOrdersData] = useState([...orders])
-  const [newStatus, setNewStatus] = useState<string>("")
-  const [newPaymentStatus, setNewPaymentStatus] = useState<string>("")
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [newStatus, setNewStatus] = useState<OrderStatus>("PROCESSING")
+  const [newPaymentStatus, setNewPaymentStatus] = useState<PaymentStatus>("PENDING")
   const invoiceRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
-
-  // Get all products
-  const allProducts = getProducts()
-
-  // Reset form when dialog opens
-  useEffect(() => {
-    if (isAddInStoreOrderOpen) {
-      setCustomerName("")
-      setCustomerPhone("")
-      setSelectedProducts([])
-      setSelectedPaymentMethod("")
-      setReferenceNumber("")
-      setOrderNotes("")
-      setProductSearchTerm("")
-    }
-  }, [isAddInStoreOrderOpen])
-
-  // Sort orders based on column and direction
-  const sortOrders = (orders: any[]) => {
-    if (!sortColumn) return orders
-
-    return [...orders].sort((a, b) => {
-      let valueA, valueB
-
-      switch (sortColumn) {
-        case "id":
-          valueA = a.id
-          valueB = b.id
-          break
-        case "customer":
-          valueA = a.customer.name.toLowerCase()
-          valueB = b.customer.name.toLowerCase()
-          break
-        case "date":
-          valueA = new Date(a.date).getTime()
-          valueB = new Date(b.date).getTime()
-          break
-        case "amount":
-          valueA = a.amount
-          valueB = b.amount
-          break
-        case "status":
-          valueA = a.status.toLowerCase()
-          valueB = b.status.toLowerCase()
-          break
-        case "payment":
-          valueA = a.paymentStatus.toLowerCase()
-          valueB = b.paymentStatus.toLowerCase()
-          break
-        case "type":
-          valueA = a.inStore ? "tienda" : "online"
-          valueB = b.inStore ? "tienda" : "online"
-          break
-        default:
-          return 0
-      }
-
-      if (valueA < valueB) return sortDirection === "asc" ? -1 : 1
-      if (valueA > valueB) return sortDirection === "asc" ? 1 : -1
-      return 0
-    })
-  }
+  const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false)
 
   // Handle column sort
-  const handleSort = (column: string) => {
+  const handleSort = (column: SortKey) => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc")
     } else {
@@ -263,29 +145,175 @@ export default function OrdersPage() {
     }
   }
 
-  // Filter orders based on search term and status filter
-  const filteredOrders = ordersData.filter((order) => {
-    // Search filter
-    const matchesSearch =
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.customer.email && order.customer.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Actualizar la función de carga de pedidos
+  const loadOrders = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/orders')
+      if (!response.ok) {
+        throw new Error('Error al cargar los pedidos')
+      }
+      const data = await response.json()
+      setOrders(data)
+    } catch (error) {
+      console.error('Error cargando pedidos:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los pedidos",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
-    // Status filter
-    const matchesStatus = statusFilter === "all" || order.status.toLowerCase() === statusFilter.toLowerCase()
+  useEffect(() => {
+    loadOrders()
+  }, [toast])
 
-    return matchesSearch && matchesStatus
-  })
+  const handleUpdateOrderStatus = async () => {
+    if (!selectedOrder || !newStatus) {
+      toast({
+        title: "Error",
+        description: "Por favor selecciona un estado",
+        variant: "destructive",
+      })
+      return
+    }
 
-  // Apply sorting to filtered orders
-  const sortedOrders = sortOrders(filteredOrders)
+    try {
+      const response = await fetch(`/api/orders/${selectedOrder.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          paymentStatus: newPaymentStatus
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar el estado del pedido')
+      }
+
+      const updatedOrder = await response.json()
+
+      // Actualizar la lista de pedidos
+      setOrders(orders.map(order =>
+        order.id === updatedOrder.id ? updatedOrder : order
+      ))
+
+      setIsUpdateStatusOpen(false)
+      toast({
+        title: "Estado actualizado",
+        description: "El estado del pedido ha sido actualizado correctamente",
+      })
+    } catch (error) {
+      console.error('Error actualizando estado:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado del pedido",
+        variant: "destructive",
+      })
+    }
+  }
+
+
+  const processedOrders = useMemo(() => {
+    let filteredOrders: Order[] = [...orders];
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      filteredOrders = filteredOrders.filter(order => order.status === statusFilter);
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      const lowercasedFilter = searchTerm.toLowerCase();
+      filteredOrders = filteredOrders.filter(order => {
+        return (
+          order.orderNumber.toLowerCase().includes(lowercasedFilter) ||
+          (order.user?.name || '').toLowerCase().includes(lowercasedFilter) ||
+          (order.user?.email || '').toLowerCase().includes(lowercasedFilter) ||
+          translateOrderStatus(order.status).toLowerCase().includes(lowercasedFilter) ||
+          translatePaymentStatus(order.paymentStatus).toLowerCase().includes(lowercasedFilter) ||
+          order.id.toLowerCase().includes(lowercasedFilter)
+        );
+      });
+    }
+
+    // Sort orders
+    const sorted = [...filteredOrders].sort((a, b) => {
+      let aValue: string | number = '';
+      let bValue: string | number = '';
+
+      switch (sortColumn) {
+        case 'orderNumber':
+          aValue = a.orderNumber;
+          bValue = b.orderNumber;
+          break;
+        case 'customer':
+          aValue = a.user?.name || '';
+          bValue = b.user?.name || '';
+          break;
+        case 'date':
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+          break;
+        case 'total':
+          aValue = a.total;
+          bValue = b.total;
+          break;
+        case 'status':
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        case 'paymentStatus':
+          aValue = a.paymentStatus;
+          bValue = b.paymentStatus;
+          break;
+      }
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      return 0;
+    });
+
+    return sorted;
+  }, [orders, searchTerm, statusFilter, sortColumn, sortDirection]);
+
+  // Get all products desde la API
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch('/api/products');
+        if (!res.ok) throw new Error('No se pudieron cargar los productos');
+        const data = await res.json();
+        setAllProducts(data);
+      } catch (err) {
+        toast({
+          title: 'Error',
+          description: 'No se pudieron cargar los productos',
+          variant: 'destructive',
+        });
+      }
+    };
+    fetchProducts();
+  }, [toast]);
 
   // Filter products based on search term
   const filteredProducts = allProducts.filter(
     (product) =>
       product.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-      product.id.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-      product.sku?.toLowerCase().includes(productSearchTerm.toLowerCase()),
+      String(product.id).toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+      (product.sku?.toLowerCase() || '').includes(productSearchTerm.toLowerCase()),
   )
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -296,19 +324,14 @@ export default function OrdersPage() {
     setStatusFilter(value)
   }
 
-  const handleViewOrderDetail = (order: any) => {
+  // Actualizar la función de manejo de vista de detalles
+  const handleViewOrderDetail = (order: Order) => {
     setSelectedOrder(order)
     setIsOrderDetailOpen(true)
   }
 
-  const handleUpdateStatus = (order: any) => {
-    setSelectedOrder(order)
-    setNewStatus(order.status.toLowerCase())
-    setNewPaymentStatus(order.paymentStatus.toLowerCase())
-    setIsUpdateStatusOpen(true)
-  }
-
-  const handleViewInvoice = (order: any) => {
+  // Actualizar la función de manejo de vista de factura
+  const handleViewInvoice = (order: Order) => {
     setSelectedOrder(order)
     setIsInvoiceOpen(true)
   }
@@ -343,7 +366,7 @@ export default function OrdersPage() {
 
     // Verificar si el producto ya está agregado
     const existingProductIndex = selectedProducts.findIndex(p => p.id === product.id);
-    
+
     if (existingProductIndex >= 0) {
       // Actualizar cantidad si ya existe
       const updatedProducts = [...selectedProducts];
@@ -408,7 +431,7 @@ export default function OrdersPage() {
     return selectedProducts.reduce((total, product) => total + product.price * product.quantity, 0)
   }
 
-  const handleSaveInStoreOrder = () => {
+  const handleSaveInStoreOrder = async () => {
     if (!customerName || selectedProducts.length === 0 || !selectedPaymentMethod) {
       toast({
         title: "Error",
@@ -428,74 +451,66 @@ export default function OrdersPage() {
       return
     }
 
-    // Create new order
+    // Construir el objeto de orden para el backend
     const newOrder = {
-      id: `ORD-${Math.floor(Math.random() * 1000)}`,
-      customer: {
+      user: {
         name: customerName,
         phone: customerPhone,
       },
-      date: new Date().toISOString().split("T")[0],
-      amount: calculateTotal(),
-      status: "Completado",
+      items: selectedProducts.map((p) => ({
+        productId: p.id,
+        quantity: p.quantity,
+        price: p.price,
+      })),
       paymentMethod:
         selectedPaymentMethod === "cash"
-          ? "Efectivo"
+          ? "EFECTIVO"
           : selectedPaymentMethod === "card"
-            ? "Tarjeta"
+            ? "TARJETA"
             : selectedPaymentMethod === "transfer"
-              ? "Transferencia"
+              ? "TRANSFERENCIA"
               : selectedPaymentMethod === "mobile"
-                ? "Pago Móvil"
-                : "Otro",
-      paymentStatus: "Pagado",
-      referenceNumber: referenceNumber || null,
-      products: selectedProducts,
+                ? "PAGO_MOVIL"
+                : "OTRO",
+      paymentStatus: "PAID",
+      paymentReference: referenceNumber || null,
       notes: orderNotes,
-      inStore: true,
+      isInStore: true, // Nuevo campo para diferenciar venta en tienda
+      nombre: customerName, // Guardar nombre del cliente en tienda
     }
 
-    // Add new order to the orders data
-    setOrdersData([newOrder, ...ordersData])
-
-    // Reset form
-    setIsAddInStoreOrderOpen(false)
-    setCustomerName("")
-    setCustomerPhone("")
-    setSelectedProducts([])
-    setSelectedPaymentMethod("")
-    setReferenceNumber("")
-    setOrderNotes("")
-
-    toast({
-      title: "Venta registrada",
-      description: "La venta en tienda ha sido registrada correctamente.",
-    })
-  }
-
-  const handleSaveStatusUpdate = () => {
-    if (!selectedOrder || !newStatus || !newPaymentStatus) return
-
-    // Update the order in the orders data
-    const updatedOrders = ordersData.map((order) => {
-      if (order.id === selectedOrder.id) {
-        return {
-          ...order,
-          status: newStatus.charAt(0).toUpperCase() + newStatus.slice(1),
-          paymentStatus: newPaymentStatus.charAt(0).toUpperCase() + newPaymentStatus.slice(1),
-          notes: order.notes ? `${order.notes}\n${orderNotes}` : orderNotes,
-        }
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(newOrder),
+      })
+      if (!response.ok) {
+        throw new Error("No se pudo registrar la venta en tienda.")
       }
-      return order
-    })
-
-    setOrdersData(updatedOrders)
-    setIsUpdateStatusOpen(false)
-
-    toast({
-      title: "Estado actualizado",
-      description: "El estado del pedido ha sido actualizado correctamente.",
-    })
+      // Recargar pedidos desde el backend
+      await loadOrders()
+      setIsAddInStoreOrderOpen(false)
+      setCustomerName("")
+      setCustomerPhone("")
+      setSelectedProducts([])
+      setSelectedPaymentMethod("")
+      setReferenceNumber("")
+      setOrderNotes("")
+      toast({
+        title: "Venta registrada",
+        description: "La venta en tienda ha sido registrada correctamente.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo registrar la venta en tienda.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handlePrintInvoice = () => {
@@ -510,6 +525,14 @@ export default function OrdersPage() {
       // Reload the page to restore all event listeners
       window.location.reload()
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h2 className="text-xl font-medium">Cargando pedidos...</h2>
+      </div>
+    )
   }
 
   return (
@@ -536,10 +559,10 @@ export default function OrdersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los estados</SelectItem>
-              <SelectItem value="procesando">Procesando</SelectItem>
-              <SelectItem value="enviado">Enviado</SelectItem>
-              <SelectItem value="completado">Completado</SelectItem>
-              <SelectItem value="cancelado">Cancelado</SelectItem>
+              <SelectItem value="PROCESSING">Procesando</SelectItem>
+              <SelectItem value="SHIPPED">Enviado</SelectItem>
+              <SelectItem value="CANCELLED">Cancelado</SelectItem>
+              <SelectItem value="COMPLETED">Completado</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -551,197 +574,197 @@ export default function OrdersPage() {
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-  <DialogHeader>
-    <DialogTitle>Registrar Venta en Tienda Física</DialogTitle>
-    <DialogDescription>
-      Completa el formulario para registrar una venta realizada en la tienda física.
-    </DialogDescription>
-  </DialogHeader>
-  <div className="grid gap-4 py-4">
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="space-y-2">
-        <Label htmlFor="customerName">Nombre del Cliente</Label>
-        <Input
-          id="customerName"
-          placeholder="Nombre completo"
-          value={customerName}
-          onChange={(e) => setCustomerName(e.target.value)}
-          className="bg-white"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="customerPhone">Teléfono</Label>
-        <Input
-          id="customerPhone"
-          placeholder="+58 412 123 4567"
-          value={customerPhone}
-          onChange={(e) => setCustomerPhone(e.target.value)}
-          className="bg-white"
-        />
-      </div>
-    </div>
-    <div className="space-y-2">
-      <Label htmlFor="paymentMethod">Método de Pago</Label>
-      <Select 
-        value={selectedPaymentMethod} 
-        onValueChange={setSelectedPaymentMethod}
-      >
-        <SelectTrigger id="paymentMethod" className="bg-white">
-          <SelectValue placeholder="Seleccionar método" />
-        </SelectTrigger>
-        <SelectContent className="bg-white">
-          <SelectItem value="cash">Efectivo</SelectItem>
-          <SelectItem value="card">Tarjeta</SelectItem>
-          <SelectItem value="transfer">Transferencia</SelectItem>
-          <SelectItem value="mobile">Pago Móvil</SelectItem>
-          <SelectItem value="other">Otro</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-
-    {(selectedPaymentMethod === "transfer" || selectedPaymentMethod === "mobile") && (
-      <div className="space-y-2">
-        <Label htmlFor="referenceNumber">Número de Referencia</Label>
-        <Input
-          id="referenceNumber"
-          placeholder="Número de referencia de la transacción"
-          value={referenceNumber}
-          onChange={(e) => setReferenceNumber(e.target.value)}
-          className="bg-white"
-        />
-      </div>
-    )}
-
-<div className="space-y-2">
-  <Label htmlFor="products">Productos</Label>
-  <div className="border rounded-md p-4 space-y-4 bg-white">
-    <div className="space-y-2">
-      <Label htmlFor="productSearch">Buscar Producto (código o nombre)</Label>
-      <Input
-        id="productSearch"
-        placeholder="Buscar producto..."
-        value={productSearchTerm}
-        onChange={(e) => setProductSearchTerm(e.target.value)}
-        className="bg-white"
-      />
-    </div>
-    <div className="flex items-center gap-4">
-      <Select 
-        value={selectedProductId}
-        onValueChange={setSelectedProductId}
-      >
-        <SelectTrigger id="productSelect" className="flex-1 bg-white">
-          <SelectValue placeholder="Seleccionar producto" />
-        </SelectTrigger>
-        <SelectContent className="bg-white">
-          {filteredProducts.map((product) => (
-            <SelectItem key={product.id} value={product.id}>
-              {product.name} - {formatCurrency(product.price)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Input
-        id="productQuantity"
-        type="number"
-        min="1"
-        placeholder="Cantidad"
-        className="w-24 bg-white"
-        defaultValue="1"
-      />
-      <Button variant="outline" size="icon" onClick={handleAddProduct}>
-        <Plus className="h-4 w-4" />
-      </Button>
-    </div>
-
-    {selectedProducts.length > 0 && (
-      <div className="mt-4 space-y-2">
-        <h4 className="text-sm font-medium">Productos agregados:</h4>
-        <div className="border rounded-md divide-y">
-          {selectedProducts.map((product, index) => (
-            <div key={index} className="p-3 flex justify-between items-center">
-              {editingProductIndex === index ? (
-                <div className="flex items-center gap-2 w-full">
-                  <div className="flex-1">
-                    <p className="font-medium">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Precio: {formatCurrency(product.price)}
-                    </p>
-                  </div>
+            <DialogHeader>
+              <DialogTitle>Registrar Venta en Tienda Física</DialogTitle>
+              <DialogDescription>
+                Completa el formulario para registrar una venta realizada en la tienda física.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="customerName">Nombre del Cliente</Label>
                   <Input
-                    type="number"
-                    min="1"
-                    className="w-20"
-                    value={editingProductQuantity}
-                    onChange={(e) => setEditingProductQuantity(Number(e.target.value))}
+                    id="customerName"
+                    placeholder="Nombre completo"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="bg-white"
                   />
-                  <Button 
-                    size="sm" 
-                    onClick={handleSaveProductEdit}
-                    className="ml-2"
-                  >
-                    Guardar
-                  </Button>
                 </div>
-              ) : (
-                <>
-                  <div>
-                    <p className="font-medium">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {product.quantity} × {formatCurrency(product.price)} = {formatCurrency(product.price * product.quantity)}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handleEditProduct(index)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                      onClick={() => handleRemoveProduct(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </>
+                <div className="space-y-2">
+                  <Label htmlFor="customerPhone">Teléfono</Label>
+                  <Input
+                    id="customerPhone"
+                    placeholder="+58 412 123 4567"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="bg-white"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paymentMethod">Método de Pago</Label>
+                <Select
+                  value={selectedPaymentMethod}
+                  onValueChange={setSelectedPaymentMethod}
+                >
+                  <SelectTrigger id="paymentMethod" className="bg-white">
+                    <SelectValue placeholder="Seleccionar método" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="cash">Efectivo</SelectItem>
+                    <SelectItem value="card">Tarjeta</SelectItem>
+                    <SelectItem value="transfer">Transferencia</SelectItem>
+                    <SelectItem value="mobile">Pago Móvil</SelectItem>
+                    <SelectItem value="other">Otro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(selectedPaymentMethod === "transfer" || selectedPaymentMethod === "mobile") && (
+                <div className="space-y-2">
+                  <Label htmlFor="referenceNumber">Número de Referencia</Label>
+                  <Input
+                    id="referenceNumber"
+                    placeholder="Número de referencia de la transacción"
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
+                    className="bg-white"
+                  />
+                </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="products">Productos</Label>
+                <div className="border rounded-md p-4 space-y-4 bg-white">
+                  <div className="space-y-2">
+                    <Label htmlFor="productSearch">Buscar Producto (código o nombre)</Label>
+                    <Input
+                      id="productSearch"
+                      placeholder="Buscar producto..."
+                      value={productSearchTerm}
+                      onChange={(e) => setProductSearchTerm(e.target.value)}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Select
+                      value={selectedProductId}
+                      onValueChange={setSelectedProductId}
+                    >
+                      <SelectTrigger id="productSelect" className="flex-1 bg-white">
+                        <SelectValue placeholder="Seleccionar producto" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {filteredProducts.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - {formatCurrency(product.price)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="productQuantity"
+                      type="number"
+                      min="1"
+                      placeholder="Cantidad"
+                      className="w-24 bg-white"
+                      defaultValue="1"
+                    />
+                    <Button variant="outline" size="icon" onClick={handleAddProduct}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {selectedProducts.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <h4 className="text-sm font-medium">Productos agregados:</h4>
+                      <div className="border rounded-md divide-y">
+                        {selectedProducts.map((product, index) => (
+                          <div key={index} className="p-3 flex justify-between items-center">
+                            {editingProductIndex === index ? (
+                              <div className="flex items-center gap-2 w-full">
+                                <div className="flex-1">
+                                  <p className="font-medium">{product.name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Precio: {formatCurrency(product.price)}
+                                  </p>
+                                </div>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  className="w-20"
+                                  value={editingProductQuantity}
+                                  onChange={(e) => setEditingProductQuantity(Number(e.target.value))}
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={handleSaveProductEdit}
+                                  className="ml-2"
+                                >
+                                  Guardar
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <div>
+                                  <p className="font-medium">{product.name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {product.quantity} × {formatCurrency(product.price)} = {formatCurrency(product.price * product.quantity)}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => handleEditProduct(index)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                                    onClick={() => handleRemoveProduct(index)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between font-medium pt-2">
+                        <span>Total:</span>
+                        <span>{formatCurrency(calculateTotal())}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notas</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Notas adicionales sobre la venta"
+                  value={orderNotes}
+                  onChange={(e) => setOrderNotes(e.target.value)}
+                  className="bg-white"
+                />
+              </div>
             </div>
-          ))}
-        </div>
-        <div className="flex justify-between font-medium pt-2">
-          <span>Total:</span>
-          <span>{formatCurrency(calculateTotal())}</span>
-        </div>
-      </div>
-    )}
-  </div>
-</div>
-    <div className="space-y-2">
-      <Label htmlFor="notes">Notas</Label>
-      <Textarea
-        id="notes"
-        placeholder="Notas adicionales sobre la venta"
-        value={orderNotes}
-        onChange={(e) => setOrderNotes(e.target.value)}
-        className="bg-white"
-      />
-    </div>
-  </div>
-  <DialogFooter>
-    <Button variant="outline" onClick={() => setIsAddInStoreOrderOpen(false)}>
-      Cancelar
-    </Button>
-    <Button type="button" onClick={handleSaveInStoreOrder}>
-      Registrar Venta
-    </Button>
-  </DialogFooter>
-</DialogContent>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddInStoreOrderOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={handleSaveInStoreOrder}>
+                Registrar Venta
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
       </div>
 
@@ -753,7 +776,7 @@ export default function OrdersPage() {
               <tr>
                 <th
                   className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
-                  onClick={() => handleSort("id")}
+                  onClick={() => handleSort("orderNumber")}
                 >
                   <div className="flex items-center">
                     ID Pedido
@@ -804,7 +827,7 @@ export default function OrdersPage() {
                 </th>
                 <th
                   className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
-                  onClick={() => handleSort("amount")}
+                  onClick={() => handleSort("total")}
                 >
                   <div className="flex items-center">
                     Monto
@@ -841,7 +864,7 @@ export default function OrdersPage() {
                   onClick={() => handleSort("payment")}
                 >
                   <div className="flex items-center">
-                    Pago
+                    Estado de pago
                     {sortColumn === "payment" ? (
                       sortDirection === "asc" ? (
                         <ChevronUp className="ml-1 h-4 w-4" />
@@ -855,69 +878,67 @@ export default function OrdersPage() {
                 </th>
                 <th
                   className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
-                  onClick={() => handleSort("type")}
+                // Columna para ubicación de compra
                 >
                   <div className="flex items-center">
-                    Tipo
-                    {sortColumn === "type" ? (
-                      sortDirection === "asc" ? (
-                        <ChevronUp className="ml-1 h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="ml-1 h-4 w-4" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    )}
+                    Ubicación
                   </div>
                 </th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-gray-500">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {sortedOrders.length === 0 ? (
+              {processedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-gray-500">
+                  <td colSpan={9} className="text-center py-8 text-gray-500">
                     No se encontraron pedidos
                   </td>
                 </tr>
               ) : (
-                sortedOrders.map((order, index) => (
+                processedOrders.map((order, index) => (
                   <tr
                     key={order.id}
                     className={`border-b bg-white hover:bg-gray-100 transition-colors`}
                   >
-                    <td className="px-4 py-3 text-sm font-medium">{order.id}</td>
-                    <td className="px-4 py-3 text-sm">{order.customer.name}</td>
-                    <td className="px-4 py-3 text-sm">{new Date(order.date).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-sm">{formatCurrency(order.amount)}</td>
+                    <td className="px-4 py-3 text-sm font-medium">{order.orderNumber}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {/* Mostrar nombre de cliente según tipo de compra */}
+                      {order.isInStore
+                        ? order.nombre || (order.phone ? `Cliente en tienda (${order.phone})` : 'Cliente en tienda')
+                        : order.user?.name || 'Cliente no registrado'}
+                    </td>
+                    <td className="px-4 py-3 text-sm">{new Date(order.createdAt).toLocaleDateString('es-ES')}</td>
+                    <td className="px-4 py-3 text-sm">{formatCurrency(order.total)}</td>
                     <td className="px-4 py-3 text-sm">
                       <Badge
                         variant="outline"
                         className={`
-                          ${order.status === "Completado" ? "bg-green-50 text-green-700 border-green-200" : ""}
-                          ${order.status === "Enviado" ? "bg-blue-50 text-blue-700 border-blue-200" : ""}
-                          ${order.status === "Procesando" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
-                          ${order.status === "Cancelado" ? "bg-red-50 text-red-700 border-red-200" : ""}
+                          ${order.status === "SHIPPED" ? "bg-blue-50 text-blue-700 border-blue-200" : ""}
+                          ${order.status === "PROCESSING" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
+                          ${order.status === "CANCELLED" ? "bg-red-50 text-red-700 border-red-200" : ""}
+                          ${order.status === "PENDING" ? "bg-orange-50 text-orange-700 border-orange-200" : ""}
+                          ${order.status === "COMPLETED" ? "bg-green-50 text-green-700 border-green-200" : ""}
                         `}
                       >
-                        {order.status}
+                        {translateOrderStatus(order.status)}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <Badge
                         variant="outline"
                         className={`
-                          ${order.paymentStatus === "Pagado" ? "bg-green-50 text-green-700 border-green-200" : ""}
-                          ${order.paymentStatus === "Pendiente" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
-                          ${order.paymentStatus === "Rechazado" ? "bg-red-50 text-red-700 border-red-200" : ""}
+                          ${order.paymentStatus === "PAID" ? "bg-green-50 text-green-700 border-green-200" : ""}
+                          ${order.paymentStatus === "PENDING" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
+                          ${order.paymentStatus === "FAILED" ? "bg-red-50 text-red-700 border-red-200" : ""}
                         `}
                       >
-                        {order.paymentStatus}
+                        {translatePaymentStatus(order.paymentStatus)}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <Badge variant={order.inStore ? "secondary" : "outline"}>
-                        {order.inStore ? "Tienda Física" : "En Línea"}
+                      {/* Nueva columna: tipo de compra */}
+                      <Badge variant="secondary">
+                        {order.isInStore ? 'Tienda física' : 'En línea'}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-sm text-right">
@@ -938,23 +959,18 @@ export default function OrdersPage() {
                             <Eye className="mr-2 h-4 w-4" />
                             Ver detalles
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleUpdateStatus(order)}>
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedOrder(order)
+                            setNewStatus(order.status)
+                            setNewPaymentStatus(order.paymentStatus)
+                            setIsUpdateStatusOpen(true)
+                          }}>
                             <Truck className="mr-2 h-4 w-4" />
                             Actualizar estado
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleViewInvoice(order)}>
                             <FileText className="mr-2 h-4 w-4" />
                             Ver factura
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Phone className="mr-2 h-4 w-4" />
-                            <a
-                              href={`https://wa.me/${order.customer.phone.replace(/\s+/g, "")}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Contactar por WhatsApp
-                            </a>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -969,247 +985,279 @@ export default function OrdersPage() {
 
       {/* Order Detail Dialog */}
       <Dialog open={isOrderDetailOpen} onOpenChange={setIsOrderDetailOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-          {selectedOrder && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Detalles del Pedido #{selectedOrder.id}</DialogTitle>
-                <DialogDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <div>
-                    Fecha: {new Date(selectedOrder.date).toLocaleDateString()} |
-                    {selectedOrder.inStore ? " Compra en tienda física" : " Compra online"}
-                  </div>
-                  <div className="ml-auto">
-                    <Badge
-                      variant="outline"
-                      className={`
-                        ${selectedOrder.status === "Completado" ? "bg-green-50 text-green-700 border-green-200" : ""}
-                        ${selectedOrder.status === "Enviado" ? "bg-blue-50 text-blue-700 border-blue-200" : ""}
-                        ${selectedOrder.status === "Procesando" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
-                        ${selectedOrder.status === "Cancelado" ? "bg-red-50 text-red-700 border-red-200" : ""}
-                      `}
-                    >
-                      Estado: {selectedOrder.status}
-                    </Badge>
-                  </div>
-                </DialogDescription>
-              </DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="bg-white pb-4 border-b">
+            <DialogTitle className="text-2xl">Detalles del Pedido {selectedOrder?.orderNumber}</DialogTitle>
+            <DialogDescription>
+              <div className="flex items-center justify-between mt-2">
+                <div className="text-sm text-gray-500">
+                  Fecha: {selectedOrder && new Date(selectedOrder.createdAt).toLocaleDateString('es-ES')}
+                </div>
+                <div className="flex gap-2">
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Customer Information */}
+                  {
+                    selectedOrder && selectedOrder.isInStore ? (
+                      <Badge variant="secondary">Venta en Tienda</Badge>
+                    ) : (
+                      <Badge variant="secondary">Venta en Línea</Badge>
+                    )
+                  }
+
+
+                  <Badge
+                    variant="outline"
+                    className={`
+                      ${selectedOrder?.status === "SHIPPED" ? "bg-blue-50 text-blue-700 border-blue-200" : ""}
+                      ${selectedOrder?.status === "PROCESSING" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
+                      ${selectedOrder?.status === "CANCELLED" ? "bg-red-50 text-red-700 border-red-200" : ""}
+                      ${selectedOrder?.status === "PENDING" ? "bg-orange-50 text-orange-700 border-orange-200" : ""}
+                      ${selectedOrder?.status === "COMPLETED" ? "bg-green-50 text-green-700 border-green-200" : ""}
+                    `}
+                  >
+                    {selectedOrder && translateOrderStatus(selectedOrder.status)}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={`
+                      ${selectedOrder?.paymentStatus === "PAID" ? "bg-green-50 text-green-700 border-green-200" : ""}
+                      ${selectedOrder?.paymentStatus === "PENDING" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
+                      ${selectedOrder?.paymentStatus === "FAILED" ? "bg-red-50 text-red-700 border-red-200" : ""}
+                    `}
+                  >
+                    {selectedOrder && translatePaymentStatus(selectedOrder.paymentStatus)}
+                  </Badge>
+                </div>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-6 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Información del cliente */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Información del Cliente</CardTitle>
+                  <CardHeader className="bg-gray-50 border-b">
+                    <CardTitle className="text-lg">Información del Cliente</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div>
-                      <span className="font-medium">Nombre:</span> {selectedOrder.customer.name}
+                  <CardContent className="pt-4">
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-sm text-gray-500">Nombre</p>
+                        <p className="font-medium">{selectedOrder.user?.name || 'Cliente no registrado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <p className="font-medium">{selectedOrder.user?.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Teléfono</p>
+                        <p className="font-medium">{selectedOrder.user?.phone || 'No especificado'}</p>
+                      </div>
                     </div>
-                    {selectedOrder.customer.email && (
-                      <div>
-                        <span className="font-medium">Email:</span> {selectedOrder.customer.email}
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <span className="font-medium">Teléfono:</span> {selectedOrder.customer.phone}
-                      </div>
-                      <a
-                        href={`https://wa.me/${selectedOrder.customer.phone.replace(/\s+/g, "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-green-600 hover:text-green-700"
-                      >
-                        <Phone className="h-4 w-4" />
-                      </a>
-                    </div>
-                    {selectedOrder.customer.address && (
-                      <div>
-                        <span className="font-medium">Dirección:</span> {selectedOrder.customer.address}
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
 
-                {/* Payment Information */}
+                {/* Dirección de envío o Notas para venta en tienda */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Información de Pago</CardTitle>
+                  <CardHeader className="bg-gray-50 border-b">
+                    <CardTitle className="text-lg">
+                      {selectedOrder.isInStore ? "Notas" : "Dirección de Envío"}
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div>
-                      <span className="font-medium">Método:</span> {selectedOrder.paymentMethod}
-                    </div>
-                    <div>
-                      <span className="font-medium">Estado:</span>{" "}
-                      <Badge
-                        variant="outline"
-                        className={`
-                          ${selectedOrder.paymentStatus === "Pagado" ? "bg-green-50 text-green-700 border-green-200" : ""}
-                          ${selectedOrder.paymentStatus === "Pendiente" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
-                          ${selectedOrder.paymentStatus === "Rechazado" ? "bg-red-50 text-red-700 border-red-200" : ""}
-                        `}
-                      >
-                        {selectedOrder.paymentStatus}
-                      </Badge>
-                    </div>
-                    {selectedOrder.referenceNumber && (
-                      <div>
-                        <span className="font-medium">Número de referencia:</span> {selectedOrder.referenceNumber}
+                  <CardContent className="pt-4">
+                    {selectedOrder.isInStore ? (
+                      <div className="space-y-1">
+                        <p className="font-medium">{selectedOrder.notes || "Sin notas"}</p>
                       </div>
-                    )}
-                    {selectedOrder.voucherUrl && (
-                      <div>
-                        <span className="font-medium">Comprobante:</span>{" "}
-                        <Button variant="link" className="p-0 h-auto" asChild>
-                          <a href={selectedOrder.voucherUrl} target="_blank" rel="noopener noreferrer">
-                            <Download className="h-4 w-4 mr-1" />
-                            Ver comprobante
-                          </a>
-                        </Button>
+                    ) : (
+                      <div className="space-y-1">
+                        <p className="font-medium">{selectedOrder.shippingAddress?.name}</p>
+                        <p>{selectedOrder.shippingAddress?.address}</p>
+                        <p>{selectedOrder.shippingAddress?.city}, {selectedOrder.shippingAddress?.zip}</p>
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Order Items */}
+              {/* Detalles del pago */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Productos</CardTitle>
+                <CardHeader className="bg-gray-50 border-b">
+                  <CardTitle className="text-lg">Detalles del Pago</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Método de pago</p>
+                      <p className="font-medium">{translatePaymentMethod(selectedOrder.paymentMethod)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Banco</p>
+                      <p className="font-medium">{selectedOrder.paymentBank}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Referencia</p>
+                      <p className="font-medium">{selectedOrder.paymentReference}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Estado del pago</p>
+                      <Badge
+                        variant="outline"
+                        className={`
+                          ${selectedOrder.paymentStatus === "PAID" ? "bg-green-50 text-green-700 border-green-200" : ""}
+                          ${selectedOrder.paymentStatus === "PENDING" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
+                          ${selectedOrder.paymentStatus === "FAILED" ? "bg-red-50 text-red-700 border-red-200" : ""}
+                        `}
+                      >
+                        {translatePaymentStatus(selectedOrder.paymentStatus)}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t">
+                    {selectedOrder?.paymentReceipt ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                        onClick={() => setIsReceiptDialogOpen(true)}
+                      >
+                        <Eye className="w-4 h-4" />
+                        Ver comprobante de pago
+                      </Button>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">No se ha subido comprobante de pago</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Productos */}
+              <Card>
+                <CardHeader className="bg-gray-50 border-b">
+                  <CardTitle className="text-lg">Productos</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
                   <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="text-left py-2 px-4 border-b">Producto</th>
-                          <th className="text-right py-2 px-4 border-b">Cantidad</th>
-                          <th className="text-right py-2 px-4 border-b">Precio</th>
-                          <th className="text-right py-2 px-4 border-b">Total</th>
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 px-4 text-gray-500 font-medium">Producto</th>
+                          <th className="text-right py-2 px-4 text-gray-500 font-medium">Cantidad</th>
+                          <th className="text-right py-2 px-4 text-gray-500 font-medium">Precio</th>
+                          <th className="text-right py-2 px-4 text-gray-500 font-medium">Total</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedOrder.products.map((product: any, index: number) => (
-                          <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                            <td className="py-2 px-4 border-b">{product.name}</td>
-                            <td className="text-right py-2 px-4 border-b">{product.quantity}</td>
-                            <td className="text-right py-2 px-4 border-b">{formatCurrency(product.price)}</td>
-                            <td className="text-right py-2 px-4 border-b">
-                              {formatCurrency(product.price * product.quantity)}
-                            </td>
+                        {selectedOrder.items.map((item) => (
+                          <tr key={`detail-item-${item.id}`} className="border-b">
+                            <td className="py-3 px-4">{item.product.name}</td>
+                            <td className="text-right py-3 px-4">{item.quantity}</td>
+                            <td className="text-right py-3 px-4">{formatCurrency(item.price)}</td>
+                            <td className="text-right py-3 px-4">{formatCurrency(item.price * item.quantity)}</td>
                           </tr>
                         ))}
+                        <tr>
+                          <td colSpan={3} className="text-right py-3 px-4 font-medium">Subtotal</td>
+                          <td className="text-right py-3 px-4 font-medium">
+                            {formatCurrency(selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0))}
+                          </td>
+                        </tr>
+                        {selectedOrder.discountCode && (
+                          <tr>
+                            <td colSpan={3} className="text-right py-3 px-4 text-green-600">
+                              Descuento (Código: {selectedOrder.discountCode})
+                            </td>
+                            <td className="text-right py-3 px-4 text-green-600">
+                              -{formatCurrency(selectedOrder.discountAmount || 0)}
+                            </td>
+                          </tr>
+                        )}
+                        <tr>
+                          <td colSpan={3} className="text-right py-3 px-4 font-medium">Total</td>
+                          <td className="text-right py-3 px-4 font-bold text-lg">
+                            {formatCurrency(selectedOrder.total)}
+                          </td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
                 </CardContent>
-                <CardFooter className="flex justify-between">
-                  <div></div>
-                  <div className="text-right">
-                    <div className="text-sm text-muted-foreground">Total</div>
-                    <div className="text-xl font-bold">{formatCurrency(selectedOrder.amount)}</div>
-                  </div>
-                </CardFooter>
               </Card>
+            </div>
+          )}
 
-              {/* Notes */}
-              {selectedOrder.notes && (
-                <div>
-                  <h3 className="font-medium mb-2">Notas:</h3>
-                  <p className="text-sm text-muted-foreground">{selectedOrder.notes}</p>
+          {/* Payment Receipt Dialog */}
+          <Dialog open={isReceiptDialogOpen} onOpenChange={setIsReceiptDialogOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Comprobante de Pago</DialogTitle>
+                <DialogDescription>
+                  Referencia: {selectedOrder?.paymentReference}
+                </DialogDescription>
+              </DialogHeader>
+              {selectedOrder?.paymentReceipt && (
+                <div className="relative w-full h-[60vh] mt-4">
+                  <Image
+                    src={`${selectedOrder.paymentReceipt}`}
+                    alt="Comprobante de pago"
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
                 </div>
               )}
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsOrderDetailOpen(false)}>
-                  Cerrar
-                </Button>
-                <Button
-                  onClick={() => {
-                    setIsOrderDetailOpen(false)
-                    handleUpdateStatus(selectedOrder)
-                  }}
-                >
-                  Actualizar Estado
-                </Button>
-                <Button
-                  onClick={() => {
-                    setIsOrderDetailOpen(false)
-                    handleViewInvoice(selectedOrder)
-                  }}
-                >
-                  Ver Factura
-                </Button>
-              </DialogFooter>
-            </>
-          )}
+            </DialogContent>
+          </Dialog>
         </DialogContent>
       </Dialog>
 
       {/* Update Status Dialog */}
       <Dialog open={isUpdateStatusOpen} onOpenChange={setIsUpdateStatusOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          {selectedOrder && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Actualizar Estado del Pedido</DialogTitle>
-                <DialogDescription>Actualiza el estado del pedido #{selectedOrder.id}</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="status">Estado del Pedido</Label>
-                  <Select 
-                    value={newStatus || selectedOrder.status.toLowerCase()}
-                    onValueChange={setNewStatus}
-                  >
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="Seleccionar estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="procesando">Procesando</SelectItem>
-                      <SelectItem value="enviado">Enviado</SelectItem>
-                      <SelectItem value="completado">Completado</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="paymentStatus">Estado del Pago</Label>
-                  <Select 
-                    value={newPaymentStatus || selectedOrder.paymentStatus.toLowerCase()}
-                    onValueChange={setNewPaymentStatus}
-                  >
-                    <SelectTrigger id="paymentStatus">
-                      <SelectValue placeholder="Seleccionar estado de pago" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendiente">Pendiente</SelectItem>
-                      <SelectItem value="pagado">Pagado</SelectItem>
-                      <SelectItem value="rechazado">Rechazado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="statusNotes">Notas</Label>
-                  <Textarea 
-                    id="statusNotes" 
-                    placeholder="Notas adicionales sobre el cambio de estado"
-                    value={orderNotes}
-                    onChange={(e) => setOrderNotes(e.target.value)}
-                  />
-                </div>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Actualizar Estado del Pedido {selectedOrder?.orderNumber}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault()
+            handleUpdateOrderStatus()
+          }}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Estado del pedido</Label>
+                <Select value={newStatus} onValueChange={(value: OrderStatus) => setNewStatus(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PROCESSING">Procesando</SelectItem>
+                    <SelectItem value="SHIPPED">Enviado</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelado</SelectItem>
+                    <SelectItem value="COMPLETED">Completado</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsUpdateStatusOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="button" onClick={handleSaveStatusUpdate}>
-                  Guardar Cambios
-                </Button>
-              </DialogFooter>
-            </>
-          )}
+
+              <div className="space-y-2">
+                <Label>Estado del pago</Label>
+                <Select value={newPaymentStatus} onValueChange={(value: PaymentStatus) => setNewPaymentStatus(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PENDING">Pendiente</SelectItem>
+                    <SelectItem value="PAID">Aprobado</SelectItem>
+                    <SelectItem value="FAILED">Fallido</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsUpdateStatusOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">Actualizar estado</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -1220,7 +1268,7 @@ export default function OrdersPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center justify-between">
-                  <span>Factura #{selectedOrder.id}</span>
+                  <span>Factura #{selectedOrder.orderNumber}</span>
                   <Button variant="outline" size="sm" onClick={handlePrintInvoice}>
                     <Printer className="h-4 w-4 mr-2" />
                     Imprimir
@@ -1234,8 +1282,8 @@ export default function OrdersPage() {
                     <div className="text-2xl font-bold tracking-tight">FERRE MATERIALES MADRID</div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">FACTURA #{selectedOrder.id}</p>
-                    <p>Fecha: {new Date(selectedOrder.date).toLocaleDateString()}</p>
+                    <p className="font-bold">FACTURA #{selectedOrder.orderNumber}</p>
+                    <p>Fecha: {new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
 
@@ -1250,19 +1298,19 @@ export default function OrdersPage() {
                   <div className="space-y-1">
                     <p className="font-bold text-sm text-gray-500">CLIENTE</p>
                     <p>
-                      <span className="font-medium">Nombre:</span> {selectedOrder.customer.name}
+                      <span className="font-medium">Nombre:</span> {selectedOrder.user?.name}
                     </p>
-                    {selectedOrder.customer.email && (
+                    {selectedOrder.user?.email && (
                       <p>
-                        <span className="font-medium">Email:</span> {selectedOrder.customer.email}
+                        <span className="font-medium">Email:</span> {selectedOrder.user?.email}
                       </p>
                     )}
                     <p>
-                      <span className="font-medium">Teléfono:</span> {selectedOrder.customer.phone}
+                      <span className="font-medium">Teléfono:</span> {selectedOrder.user?.phone}
                     </p>
-                    {selectedOrder.customer.address && (
+                    {selectedOrder.shippingAddress && (
                       <p>
-                        <span className="font-medium">Dirección:</span> {selectedOrder.customer.address}
+                        <span className="font-medium">Dirección:</span> {selectedOrder.shippingAddress.address}
                       </p>
                     )}
                   </div>
@@ -1279,13 +1327,13 @@ export default function OrdersPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedOrder.products.map((product: any, index: number) => (
-                        <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                          <td className="py-2 px-4 border-b">{product.name}</td>
-                          <td className="text-right py-2 px-4 border-b">{product.quantity}</td>
-                          <td className="text-right py-2 px-4 border-b">{formatCurrency(product.price)}</td>
+                      {selectedOrder.items.map((item) => (
+                        <tr key={`invoice-item-${item.id}`} className="bg-white">
+                          <td className="py-2 px-4 border-b">{item.product.name}</td>
+                          <td className="text-right py-2 px-4 border-b">{item.quantity}</td>
+                          <td className="text-right py-2 px-4 border-b">{formatCurrency(item.price)}</td>
                           <td className="text-right py-2 px-4 border-b">
-                            {formatCurrency(product.price * product.quantity)}
+                            {formatCurrency(item.price * item.quantity)}
                           </td>
                         </tr>
                       ))}
@@ -1297,15 +1345,15 @@ export default function OrdersPage() {
                   <div className="w-64">
                     <div className="flex justify-between py-1">
                       <span className="font-medium">Subtotal:</span>
-                      <span>{formatCurrency(selectedOrder.amount)}</span>
+                      <span>{formatCurrency(selectedOrder.total)}</span>
                     </div>
                     <div className="flex justify-between py-1">
                       <span className="font-medium">IVA (16%):</span>
-                      <span>{formatCurrency(selectedOrder.amount * 0.16)}</span>
+                      <span>{formatCurrency(selectedOrder.total * 0.16)}</span>
                     </div>
                     <div className="flex justify-between py-1 border-t mt-1 pt-1">
                       <span className="font-bold">TOTAL:</span>
-                      <span className="font-bold">{formatCurrency(selectedOrder.amount * 1.16)}</span>
+                      <span className="font-bold">{formatCurrency(selectedOrder.total * 1.16)}</span>
                     </div>
                   </div>
                 </div>
@@ -1313,8 +1361,10 @@ export default function OrdersPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
                     <h3 className="font-bold mb-2 text-sm text-gray-500">FORMA DE PAGO</h3>
-                    <p>{selectedOrder.paymentMethod}</p>
-                    {selectedOrder.referenceNumber && <p>Referencia: {selectedOrder.referenceNumber}</p>}
+                    <p>{translatePaymentMethod(selectedOrder.paymentMethod)}</p>
+                    {selectedOrder.paymentReference && (
+                      <p>Referencia: {selectedOrder.paymentReference}</p>
+                    )}
                   </div>
                   {selectedOrder.notes && (
                     <div>

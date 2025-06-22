@@ -85,15 +85,33 @@ export interface ProductImage {
 // Interfaces relacionadas con órdenes
 export interface Order {
   id: string
+  orderNumber: string
   userId: string | null
   status: OrderStatus
   total: number
   itemsCount: number
   phone: string | null
   email: string | null
+  nombre?: string | null // Nombre del cliente en tienda física
+  isInStore?: boolean // True: venta en tienda, False: venta online
   paymentStatus: PaymentStatus
+  paymentMethod: string
+  paymentBank: string
+  paymentReference: string
+  paymentReceipt?: string
   shippingAddressId: string | null
+  shippingAddress?: Address
+  createdAt: Date
   items: OrderItem[]
+  user?: {
+    id: string
+    name: string
+    email: string
+    phone: string
+  }
+  discountCode?: string
+  discountAmount?: number
+  notes?: string
 }
 
 export interface OrderItem {
@@ -169,7 +187,7 @@ export interface OrderDetail {
   product?: Product
 }
 
-export interface OrderComplete extends Omit<Order, 'items'> {
+export interface OrderComplete extends Omit<Order, 'items' | 'paymentMethod'> {
   items: OrderDetail[]
   address?: Address
   paymentMethod?: string
