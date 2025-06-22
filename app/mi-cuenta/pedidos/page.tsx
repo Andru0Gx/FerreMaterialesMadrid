@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,60 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-
-// Datos de ejemplo para pedidos del cliente
-const clientOrders = [
-  {
-    id: "ORD-001",
-    date: "2023-05-07",
-    status: "completed",
-    statusText: "Completado",
-    paymentStatus: "paid",
-    paymentStatusText: "Pagado",
-    total: 250.99,
-    items: 3,
-  },
-  {
-    id: "ORD-002",
-    date: "2023-06-15",
-    status: "processing",
-    statusText: "En proceso",
-    paymentStatus: "paid",
-    paymentStatusText: "Pagado",
-    total: 120.5,
-    items: 2,
-  },
-  {
-    id: "ORD-003",
-    date: "2023-07-22",
-    status: "pending",
-    statusText: "Pendiente",
-    paymentStatus: "pending",
-    paymentStatusText: "Pendiente",
-    total: 350.75,
-    items: 5,
-  },
-  {
-    id: "ORD-004",
-    date: "2023-08-10",
-    status: "shipped",
-    statusText: "Enviado",
-    paymentStatus: "paid",
-    paymentStatusText: "Pagado",
-    total: 180.25,
-    items: 1,
-  },
-  {
-    id: "ORD-005",
-    date: "2023-09-05",
-    status: "cancelled",
-    statusText: "Cancelado",
-    paymentStatus: "refunded",
-    paymentStatusText: "Reembolsado",
-    total: 420.0,
-    items: 4,
-  },
-]
+import { useExchangeRate } from "@/hooks/use-exchange-rate"
 
 export default function PedidosPage() {
   const { user } = useAuth()
@@ -73,15 +20,69 @@ export default function PedidosPage() {
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  // Define a type for Order que coincida con el schema de Prisma
+  type Order = {
+    id: string
+    orderNumber: string
+    createdAt: string
+    updatedAt: string
+    userId: string
+    status: string
+    paymentStatus: string
+    total: number
+    itemsCount: number
+    paymentMethod?: string | null
+    paymentBank?: string | null
+    paymentReference?: string | null
+    shippingAddressId?: string | null
+    phone?: string | null
+    email?: string | null
+    notes?: string | null
+    discountCode?: string | null
+    discountAmount?: number | null
+    isInStore?: boolean | null
+    nombre?: string | null
+    statusText?: string
+    paymentStatusText?: string
+    items: any[]
+    shippingAddress?: any
+    user?: any
+    // Puedes agregar más campos según tu schema
+  }
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  const { rate: exchangeRate, loading: rateLoading, error: rateError } = useExchangeRate()
 
   // Si no hay usuario, redirigir al login
-  if (!user) {
-    router.push("/login?redirect=/mi-cuenta/pedidos")
-    return null
-  }
+  useEffect(() => {
+    if (!user) {
+      router.push("/login?redirect=/mi-cuenta/pedidos")
+    }
+  }, [user, router])
+
+  // Fetch pedidos del usuario autenticado
+  useEffect(() => {
+    if (!user?.id) return
+    setLoading(true)
+    setError("")
+    fetch(`/api/orders?userId=${encodeURIComponent(user.id)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("No se pudieron obtener los pedidos")
+        const data = await res.json()
+        // Ahora el backend ya filtra por userId, así que solo asignamos el array
+        setOrders(Array.isArray(data) ? data : [])
+      })
+      .catch((err) => {
+        setError(err.message || "Error al cargar pedidos")
+        setOrders([])
+      })
+      .finally(() => setLoading(false))
+  }, [user?.id])
 
   // Filtrar pedidos según búsqueda y filtro de estado
-  const filteredOrders = clientOrders.filter((order) => {
+  const filteredOrders = orders.filter((order) => {
     const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus =
       statusFilter === "all" ||
@@ -91,41 +92,60 @@ export default function PedidosPage() {
     return matchesSearch && matchesStatus
   })
 
-  // Función para obtener el color de badge según el estado
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-800"
-      case "processing":
-      case "shipped":
-        return "bg-blue-100 text-blue-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "cancelled":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+  // Traducción de estados y colores para badges (como en admin/pedidos)
+  const translateOrderStatus = (status: string): string => {
+    const translations: Record<string, string> = {
+      PENDING: "Pendiente",
+      PROCESSING: "Procesando",
+      SHIPPED: "Enviado",
+      CANCELLED: "Cancelado",
+      COMPLETED: "Completado",
+      DELIVERED: "Entregado",
+      completed: "Completado",
+      processing: "Procesando",
+      shipped: "Enviado",
+      cancelled: "Cancelado",
+      pending: "Pendiente",
+      delivered: "Entregado",
+    }
+    return translations[status] || status
+  }
+  const translatePaymentStatus = (status: string): string => {
+    const translations: Record<string, string> = {
+      PENDING: "Pendiente",
+      PAID: "Aprobado",
+      FAILED: "Fallido",
+      paid: "Aprobado",
+      pending: "Pendiente",
+      failed: "Fallido",
+      refunded: "Reembolsado",
+      REFUNDED: "Reembolsado",
+    }
+    return translations[status] || status
+  }
+  const getStatusColor = (status: string): string => {
+    switch (status.toUpperCase()) {
+      case "COMPLETED": return "bg-green-100 text-green-800"
+      case "PROCESSING": return "bg-blue-100 text-blue-800"
+      case "SHIPPED": return "bg-cyan-100 text-cyan-800"
+      case "PENDING": return "bg-yellow-100 text-yellow-800"
+      case "CANCELLED": return "bg-red-100 text-red-800"
+      case "DELIVERED": return "bg-green-200 text-green-900"
+      default: return "bg-gray-100 text-gray-800"
     }
   }
-
-  // Función para obtener el color de badge según el estado de pago
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case "paid":
-        return "bg-green-100 text-green-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "refunded":
-        return "bg-purple-100 text-purple-800"
-      case "failed":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+  const getPaymentStatusColor = (status: string): string => {
+    switch (status.toUpperCase()) {
+      case "PAID": return "bg-green-100 text-green-800"
+      case "PENDING": return "bg-yellow-100 text-yellow-800"
+      case "FAILED": return "bg-red-100 text-red-800"
+      case "REFUNDED": return "bg-purple-100 text-purple-800"
+      default: return "bg-gray-100 text-gray-800"
     }
   }
 
   // Formatear fecha
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     try {
       const date = new Date(dateString)
       return format(date, "d 'de' MMMM, yyyy", { locale: es })
@@ -133,6 +153,8 @@ export default function PedidosPage() {
       return dateString
     }
   }
+
+  if (!user) return null
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -167,7 +189,19 @@ export default function PedidosPage() {
         </Select>
       </div>
 
-      {filteredOrders.length > 0 ? (
+      {loading ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <span className="text-gray-500">Cargando pedidos...</span>
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <span className="text-red-500">{error}</span>
+          </CardContent>
+        </Card>
+      ) : filteredOrders.length > 0 ? (
         <div className="space-y-4">
           {filteredOrders.map((order) => (
             <Card key={order.id} className="overflow-hidden hover:shadow-md transition-shadow">
@@ -175,19 +209,19 @@ export default function PedidosPage() {
                 <div className="border-b p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="font-medium text-lg">{order.id}</p>
-                      <p className="text-sm text-gray-500">{formatDate(order.date)}</p>
+                      <p className="font-medium text-lg">{order.orderNumber}</p>
+                      <p className="text-sm text-gray-500">{formatDate(order.createdAt)}</p>
                     </div>
                     <div className="flex gap-2">
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}
                       >
-                        {order.statusText}
+                        {translateOrderStatus(order.status)}
                       </span>
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}
                       >
-                        {order.paymentStatusText}
+                        {translatePaymentStatus(order.paymentStatus)}
                       </span>
                     </div>
                   </div>
@@ -196,9 +230,17 @@ export default function PedidosPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-500">{order.items} productos</span>
+                      <span className="text-sm text-gray-500">{order.itemsCount} productos</span>
                     </div>
-                    <p className="font-medium mt-1">{order.total.toFixed(2)} €</p>
+                    <p className="font-medium mt-1">
+                      {order.total.toLocaleString("es-MX", { style: "currency", currency: "USD" })}
+                      {" "}
+                      {exchangeRate && !rateLoading && (
+                        <span className="block text-sm text-gray-500">
+                          {`≈ ${(order.total * exchangeRate).toLocaleString("es-VE", { style: "currency", currency: "VES" })} (Bs)`}
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/mi-cuenta/pedidos/${order.id}`}>

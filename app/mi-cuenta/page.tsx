@@ -10,28 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import {
-  Package,
-  User,
-  LogOut,
-  ShoppingBag,
-  MapPin,
-  Trash,
-  PencilLine,
-  Plus,
-  Check,
-  Eye,
-  EyeOff,
-  ChevronRight,
-} from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { User, LogOut, MapPin, Trash, PencilLine, Plus, Eye, EyeOff } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -60,34 +40,6 @@ interface AddressFormData {
   city: string
   zip: string
 }
-
-// Datos de ejemplo para pedidos
-const clientOrders = [
-  {
-    id: "ORD-001",
-    date: "2023-05-07",
-    status: "completed",
-    statusText: "Completado",
-    total: 250.99,
-    items: 3,
-  },
-  {
-    id: "ORD-002",
-    date: "2023-06-15",
-    status: "processing",
-    statusText: "En proceso",
-    total: 120.5,
-    items: 2,
-  },
-  {
-    id: "ORD-003",
-    date: "2023-07-22",
-    status: "pending",
-    statusText: "Pendiente",
-    total: 350.75,
-    items: 5,
-  },
-]
 
 // Datos de ejemplo para direcciones
 const initialAddresses = [
@@ -489,13 +441,11 @@ export default function MiCuentaPage() {
                   <User className="mr-2 h-4 w-4" />
                   Perfil
                 </Button>
-                <Button
-                  variant={activeTab === "pedidos" ? "default" : "ghost"}
-                  className={`justify-start ${activeTab === "pedidos" ? "bg-[var(--primary-color)]" : ""}`}
-                  onClick={() => setActiveTab("pedidos")}
-                >
-                  <Package className="mr-2 h-4 w-4" />
-                  Mis pedidos
+                <Button asChild variant="ghost" className="justify-start">
+                  <Link href="/mi-cuenta/pedidos">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="mr-2 h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7l1.664 12.03A2 2 0 006.655 21h10.69a2 2 0 001.991-1.97L21 7M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2M9 11v6m6-6v6" /></svg>
+                    Mis pedidos
+                  </Link>
                 </Button>
                 <Button
                   variant={activeTab === "direcciones" ? "default" : "ghost"}
@@ -521,14 +471,10 @@ export default function MiCuentaPage() {
         {/* Tabs para móvil */}
         <div className="md:hidden">
           <Tabs defaultValue="perfil" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="perfil">
                 <User className="mr-2 h-4 w-4" />
                 Perfil
-              </TabsTrigger>
-              <TabsTrigger value="pedidos">
-                <Package className="mr-2 h-4 w-4" />
-                Pedidos
               </TabsTrigger>
               <TabsTrigger value="direcciones">
                 <MapPin className="mr-2 h-4 w-4" />
@@ -655,64 +601,6 @@ export default function MiCuentaPage() {
                   Cambiar contraseña
                 </Button>
               </CardFooter>
-            </Card>
-          )}
-
-          {activeTab === "pedidos" && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Mis pedidos</CardTitle>
-                  <CardDescription>Historial de tus compras recientes</CardDescription>
-                </div>
-                <Button asChild variant="outline">
-                  <Link href="/mi-cuenta/pedidos">
-                    Ver todos
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {clientOrders.length > 0 ? (
-                  <div className="space-y-4">
-                    {clientOrders.map((order) => (
-                      <div key={order.id} className="rounded-lg border p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <p className="font-medium">Pedido #{order.id}</p>
-                            <p className="text-sm text-gray-500">{formatDate(order.date)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">{order.total.toFixed(2)} €</p>
-                            <p className="text-sm text-gray-500">{order.items} productos</p>
-                          </div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
-                              order.status,
-                            )}`}
-                          >
-                            {order.statusText}
-                          </span>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/mi-cuenta/pedidos/${order.id}`}>Ver detalles</Link>
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <ShoppingBag className="h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-lg font-medium">No tienes pedidos</h3>
-                    <p className="mt-1 text-sm text-gray-500">Cuando realices una compra, aparecerá aquí.</p>
-                    <Button className="mt-4 bg-[var(--primary-color)] hover:bg-[var(--primary-color)]/90">
-                      <Link href="/productos">Ir a comprar</Link>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
             </Card>
           )}
 

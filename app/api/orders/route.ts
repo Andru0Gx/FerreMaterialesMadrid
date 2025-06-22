@@ -11,6 +11,7 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url)
         const id = searchParams.get('id')
+        const userId = searchParams.get('userId')
         const includeItems = searchParams.get('includeItems') === 'true'
 
         if (id) {
@@ -37,7 +38,14 @@ export async function GET(request: Request) {
             return NextResponse.json(order)
         }
 
+        // Si se pasa userId, filtrar por usuario
+        let where = {}
+        if (userId) {
+            where = { userId }
+        }
+
         const orders = await prisma.order.findMany({
+            where,
             include: {
                 items: {
                     include: {
