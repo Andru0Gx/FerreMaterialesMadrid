@@ -187,4 +187,96 @@ export async function createOrder({
         await query('ROLLBACK')
         throw error
     }
-} 
+}
+
+// Dashboard: estadísticas generales
+export async function getDashboardStats(period: string) {
+    let dateCondition = ''
+    if (period === 'day') dateCondition = `AND created_at >= NOW() - INTERVAL '1 day'`
+    else if (period === 'week') dateCondition = `AND created_at >= NOW() - INTERVAL '7 days'`
+    else if (period === 'month') dateCondition = `AND created_at >= NOW() - INTERVAL '1 month'`
+    else if (period === 'year') dateCondition = `AND created_at >= NOW() - INTERVAL '1 year'`
+
+    // Actual
+    const totalSales = await query(`SELECT COALESCE(SUM(total),0) as total FROM orders WHERE status = 'COMPLETED' ${dateCondition}`)
+    const totalOrders = await query(`SELECT COUNT(*) as count FROM orders WHERE 1=1 ${dateCondition}`)
+    const totalCustomers = await query(`SELECT COUNT(DISTINCT user_id) as count FROM orders WHERE 1=1 ${dateCondition}`)
+    const avgOrder = await query(`SELECT COALESCE(AVG(total),0) as avg FROM orders WHERE status = 'COMPLETED' ${dateCondition}`)
+    const pendingOrders = await query(`SELECT COUNT(*) as count FROM orders WHERE status = 'PENDING' ${dateCondition}`)
+
+    // Mes anterior
+    let prevMonthCondition = `AND created_at >= date_trunc('month', NOW() - INTERVAL '1 month') AND created_at < date_trunc('month', NOW())`
+    const prevTotalSales = await query(`SELECT COALESCE(SUM(total),0) as total FROM orders WHERE status = 'COMPLETED' ${prevMonthCondition}`)
+    const prevTotalOrders = await query(`SELECT COUNT(*) as count FROM orders WHERE 1=1 ${prevMonthCondition}`)
+    const prevTotalCustomers = await query(`SELECT COUNT(DISTINCT user_id) as count FROM orders WHERE 1=1 ${prevMonthCondition}`)
+    const prevAvgOrder = await query(`SELECT COALESCE(AVG(total),0) as avg FROM orders WHERE status = 'COMPLETED' ${prevMonthCondition}`)
+    const prevPendingOrders = await query(`SELECT COUNT(*) as count FROM orders WHERE status = 'PENDING' ${prevMonthCondition}`)
+
+    return {
+        totalSales: Number(totalSales.rows[0]?.total || 0),
+        totalOrders: Number(totalOrders.rows[0]?.count || 0),
+        totalCustomers: Number(totalCustomers.rows[0]?.count || 0),
+        averageOrderValue: Number(avgOrder.rows[0]?.avg || 0),
+        pendingOrders: Number(pendingOrders.rows[0]?.count || 0),
+        prevMonth: {
+            totalSales: Number(prevTotalSales.rows[0]?.total || 0),
+            totalOrders: Number(prevTotalOrders.rows[0]?.count || 0),
+            totalCustomers: Number(prevTotalCustomers.rows[0]?.count || 0),
+            averageOrderValue: Number(prevAvgOrder.rows[0]?.avg || 0),
+            pendingOrders: Number(prevPendingOrders.rows[0]?.count || 0),
+        }
+    }
+}
+
+// Dashboard: pedidos recientes
+export async function getRecentOrders(period: string, limit: number = 5) {
+    let dateCondition = ''
+    if (period === 'day') dateCondition = `AND o.created_at >= NOW() - INTERVAL '1 day'`
+    else if (period === 'week') dateCondition = `AND o.created_at >= NOW() - INTERVAL '7 days'`
+    else if (period === 'month') dateCondition = `AND o.created_at >= NOW() - INTERVAL '1 month'`
+    else if (period === 'year') dateCondition = `AND o.created_at >= NOW() - INTERVAL '1 year'`
+
+    const res = await query(`
+    SELECT o.id, o.order_number, o.user_id, o.status, o.total, o.created_at, u.name as customer
+    FROM orders o
+    LEFT JOIN users u ON o.user_id = u.id
+    WHERE 1=1 ${dateCondition}
+    ORDER BY o.created_at DESC
+    LIMIT $1
+  `, [limit])
+    return res.rows.map((row: any) => ({
+        id: row.id,
+        orderNumber: row.order_number,
+        userId: row.user_id,
+        status: row.status,
+        total: row.total,
+        createdAt: row.created_at,
+        customer: row.customer
+    }))
+}
+
+// Dashboard: productos más vendidos
+export async function getTopProducts(period: string, limit: number = 5) {
+    let dateCondition = ''
+    if (period === 'day') dateCondition = `AND o.created_at >= NOW() - INTERVAL '1 day'`
+    else if (period === 'week') dateCondition = `AND o.created_at >= NOW() - INTERVAL '7 days'`
+    else if (period === 'month') dateCondition = `AND o.created_at >= NOW() - INTERVAL '1 month'`
+    else if (period === 'year') dateCondition = `AND o.created_at >= NOW() - INTERVAL '1 year'`
+
+    const res = await query(`
+    SELECT p.id, p.name, SUM(oi.quantity) as sales, SUM(oi.price * oi.quantity) as revenue
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.id
+    JOIN orders o ON oi.order_id = o.id
+    WHERE 1=1 ${dateCondition}
+    GROUP BY p.id, p.name
+    ORDER BY sales DESC
+    LIMIT $1
+  `, [limit])
+    return res.rows.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        sales: Number(row.sales),
+        revenue: Number(row.revenue)
+    }))
+}

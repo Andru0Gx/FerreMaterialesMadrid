@@ -307,6 +307,13 @@ export interface StatsData {
   totalCustomers: number
   averageOrderValue: number
   pendingOrders: number
+  prevMonth?: {
+    totalSales: number
+    totalOrders: number
+    totalCustomers: number
+    averageOrderValue: number
+    pendingOrders: number
+  }
 }
 
 export interface Filters {
