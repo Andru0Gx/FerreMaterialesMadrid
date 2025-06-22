@@ -49,6 +49,7 @@ import { useRouter } from "next/navigation"
 import type { Order } from "@/lib/types"
 import Image from "next/image"
 import { LogoExtendido } from "@/components/ui/logo"
+import { COMPANY_INFO } from "@/lib/data"
 
 // Actualizar las interfaces
 interface OrderItem {
@@ -1307,10 +1308,10 @@ export default function OrdersPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                   <div className="space-y-2">
                     <p className="font-bold text-sm text-gray-600">DATOS DE LA EMPRESA</p>
-                    <p className="text-sm text-gray-500">RIF: J-123456789</p>
-                    <p className="text-sm text-gray-500">Av. Principal, Maturín, Venezuela</p>
-                    <p className="text-sm text-gray-500">Teléfono: +58 412 123 4567</p>
-                    <p className="text-sm text-gray-500">Email: info@ferremadrid.com</p>
+                    <p className="text-sm text-gray-500">RIF: {COMPANY_INFO.rif}</p>
+                    <p className="text-sm text-gray-500">{COMPANY_INFO.direccion}</p>
+                    <p className="text-sm text-gray-500">Teléfono: {COMPANY_INFO.telefono}</p>
+                    <p className="text-sm text-gray-500">Email: {COMPANY_INFO.email}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="font-bold text-sm text-gray-600">CLIENTE</p>

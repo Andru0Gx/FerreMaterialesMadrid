@@ -20,7 +20,7 @@ export default function Footer() {
 
           <li>
             <a
-              href="https://wa.me/+584124111616"
+              href={`https://wa.me/${COMPANY_INFO.telefono.replace(/\D/g, "")}`}
               target="_blank"
               className="flex items-center space-x-5"
               rel="noreferrer"

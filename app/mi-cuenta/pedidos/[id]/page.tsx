@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { useExchangeRate } from "@/hooks/use-exchange-rate"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { LogoExtendido } from "@/components/ui/logo"
+import { COMPANY_INFO } from "@/lib/data"
 
 // Interfaces basadas en schema.prisma
 interface User {
@@ -524,7 +525,7 @@ export default function PedidoDetallePage({ params }: { params: { id: string } }
             <CardContent className="space-y-4">
               <Button variant="outline" className="w-full" asChild>
                 <a
-                  href={`https://wa.me/584121234567?text=Hola,%20necesito%20ayuda%20con%20mi%20pedido%20${order.id}%20y%20mi%20nota%20de%20compra`}
+                  href={`https://wa.me/${COMPANY_INFO.telefono.replace(/\D/g, "")}?text=Hola,%20necesito%20ayuda%20con%20mi%20pedido%20${order.orderNumber}%20y%20mi%20nota%20de%20compra`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -558,10 +559,10 @@ export default function PedidoDetallePage({ params }: { params: { id: string } }
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                       <div className="space-y-2">
                         <p className="font-bold text-sm text-gray-600">DATOS DE LA EMPRESA</p>
-                        <p className="text-sm text-gray-500">RIF: J-123456789</p>
-                        <p className="text-sm text-gray-500">Av. Principal, Maturín, Venezuela</p>
-                        <p className="text-sm text-gray-500">Teléfono: +58 412 123 4567</p>
-                        <p className="text-sm text-gray-500">Email: info@ferremadrid.com</p>
+                        <p className="text-sm text-gray-500">RIF: {COMPANY_INFO.rif}</p>
+                        <p className="text-sm text-gray-500">{COMPANY_INFO.direccion}</p>
+                        <p className="text-sm text-gray-500">Teléfono: {COMPANY_INFO.telefono}</p>
+                        <p className="text-sm text-gray-500">Email: {COMPANY_INFO.email}</p>
                       </div>
                       <div className="space-y-2">
                         <p className="font-bold text-sm text-gray-600">CLIENTE</p>
