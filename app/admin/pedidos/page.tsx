@@ -47,6 +47,7 @@ import { formatCurrency } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import type { Order as OriginalOrder } from "@/lib/types"
+import useSWR from "swr"
 
 type Order = OriginalOrder & {
   subtotal?: number,
@@ -146,6 +147,18 @@ export default function OrdersPage() {
   const [newPaymentStatus, setNewPaymentStatus] = useState<PaymentStatus>("PENDING")
   const invoiceRef = useRef<HTMLDivElement>(null)
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false)
+
+  // SWR para pedidos
+  const { data: swrOrders, isLoading: swrLoading, mutate } = useSWR('/api/orders', async (url) => {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error('Error al cargar los pedidos')
+    return response.json()
+  }, { refreshInterval: 2500 })
+
+  useEffect(() => {
+    if (swrOrders) setOrders(swrOrders)
+    setLoading(swrLoading)
+  }, [swrOrders, swrLoading])
 
   // Handle column sort
   const handleSort = (column: SortKey) => {
