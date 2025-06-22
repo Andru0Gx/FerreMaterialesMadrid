@@ -48,6 +48,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import type { Order } from "@/lib/types"
 import Image from "next/image"
+import { LogoExtendido } from "@/components/ui/logo"
 
 // Actualizar las interfaces
 interface OrderItem {
@@ -1041,18 +1042,33 @@ export default function OrdersPage() {
                   </CardHeader>
                   <CardContent className="pt-4">
                     <div className="space-y-2">
-                      <div>
-                        <p className="text-sm text-gray-500">Nombre</p>
-                        <p className="font-medium">{selectedOrder.user?.name || 'Cliente no registrado'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Email</p>
-                        <p className="font-medium">{selectedOrder.user?.email}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Teléfono</p>
-                        <p className="font-medium">{selectedOrder.user?.phone || 'No especificado'}</p>
-                      </div>
+                      {selectedOrder.isInStore ? (
+                        <>
+                          <div>
+                            <p className="text-sm text-gray-500">Nombre</p>
+                            <p className="font-medium">{selectedOrder.nombre || "Cliente no registrado"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Teléfono</p>
+                            <p className="font-medium">{selectedOrder.phone || "No especificado"}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="text-sm text-gray-500">Nombre</p>
+                            <p className="font-medium">{selectedOrder.user?.name || "Cliente no registrado"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Email</p>
+                            <p className="font-medium">{selectedOrder.user?.email}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Teléfono</p>
+                            <p className="font-medium">{selectedOrder.user?.phone || "No especificado"}</p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1280,7 +1296,7 @@ export default function OrdersPage() {
               <div ref={invoiceRef} className="p-8 bg-gray-50 rounded-lg shadow-md">
                 <div className="flex justify-between items-center mb-8 border-b pb-4">
                   <div className="flex items-center">
-                    <div className="text-3xl font-extrabold tracking-tight text-gray-800">FERRE MATERIALES MADRID</div>
+                    <LogoExtendido className="h-12 w-auto" />
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-lg text-gray-700">{selectedOrder.orderNumber}</p>
@@ -1298,21 +1314,34 @@ export default function OrdersPage() {
                   </div>
                   <div className="space-y-2">
                     <p className="font-bold text-sm text-gray-600">CLIENTE</p>
-                    <p className="text-sm text-gray-500">
-                      <span className="font-medium">Nombre:</span> {selectedOrder.user?.name}
-                    </p>
-                    {selectedOrder.user?.email && (
-                      <p className="text-sm text-gray-500">
-                        <span className="font-medium">Email:</span> {selectedOrder.user?.email}
-                      </p>
-                    )}
-                    <p className="text-sm text-gray-500">
-                      <span className="font-medium">Teléfono:</span> {selectedOrder.user?.phone}
-                    </p>
-                    {selectedOrder.shippingAddress && (
-                      <p className="text-sm text-gray-500">
-                        <span className="font-medium">Dirección:</span> {selectedOrder.shippingAddress.address}
-                      </p>
+                    {selectedOrder.isInStore ? (
+                      <>
+                        <p className="text-sm text-gray-500">
+                          <span className="font-medium">Nombre:</span> {selectedOrder.nombre || "Nombre no disponible"}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          <span className="font-medium">Teléfono:</span> {selectedOrder.phone || "Teléfono no disponible"}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-500">
+                          <span className="font-medium">Nombre:</span> {selectedOrder.user?.name || "Nombre no disponible"}
+                        </p>
+                        {selectedOrder.user?.email && (
+                          <p className="text-sm text-gray-500">
+                            <span className="font-medium">Email:</span> {selectedOrder.user?.email || "Email no disponible"}
+                          </p>
+                        )}
+                        <p className="text-sm text-gray-500">
+                          <span className="font-medium">Teléfono:</span> {selectedOrder.user?.phone || "Teléfono no disponible"}
+                        </p>
+                        {selectedOrder.shippingAddress && (
+                          <p className="text-sm text-gray-500">
+                            <span className="font-medium">Dirección:</span> {selectedOrder.shippingAddress.address || "Dirección no disponible"}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
