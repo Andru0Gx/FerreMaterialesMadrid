@@ -27,8 +27,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ImageUpload } from "@/components/admin/image-upload"
-import { Plus, Search, MoreVertical, Edit, Trash, Tag, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react"
+import { Plus, Search, MoreVertical, Edit, Trash, Tag, ArrowUpDown, ChevronUp, ChevronDown, Bot, Loader } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { fetchGeminiCompletion } from "@/lib/gemini";
+import {
+  PROMPT_SHORT_DESCRIPTION,
+  PROMPT_DESCRIPTION,
+  PROMPT_SPECIFICATIONS,
+  PROMPT_PRICE,
+} from "@/lib/gemini-prompts"
 
 // Lista predefinida de categorías
 const CATEGORIES = [
@@ -124,6 +132,14 @@ export default function ProductsPage() {
     amount: "0",
     isActive: false
   })
+
+  // Estado de loading para los botones AI
+  const [aiLoading, setAiLoading] = useState({
+    shortDescription: false,
+    description: false,
+    specifications: false,
+    price: false,
+  });
 
   useEffect(() => {
     // Cargar productos y promociones desde la base de datos
@@ -876,6 +892,91 @@ export default function ProductsPage() {
     }
   }
 
+  // Funciones para los botones AI
+  const handleAIGenerateShortDescription = async () => {
+    if (!productForm.name) return;
+    setAiLoading((prev) => ({ ...prev, shortDescription: true }));
+    try {
+      const prompt = PROMPT_SHORT_DESCRIPTION(productForm.name);
+      const result = await fetchGeminiCompletion(prompt);
+      setProductForm((prev) => ({ ...prev, shortDescription: result.trim() }));
+    } catch (e) {
+      toast({ title: "Error AI", description: "No se pudo generar la descripción corta", variant: "destructive" });
+    } finally {
+      setAiLoading((prev) => ({ ...prev, shortDescription: false }));
+    }
+  };
+
+  const handleAIGenerateDescription = async () => {
+    if (!productForm.name) return;
+    setAiLoading((prev) => ({ ...prev, description: true }));
+    try {
+      const prompt = PROMPT_DESCRIPTION(productForm.name);
+      const result = await fetchGeminiCompletion(prompt);
+      setProductForm((prev) => ({ ...prev, description: result.trim() }));
+    } catch (e) {
+      toast({ title: "Error AI", description: "No se pudo generar la descripción completa", variant: "destructive" });
+    } finally {
+      setAiLoading((prev) => ({ ...prev, description: false }));
+    }
+  };
+
+  const handleAIGenerateSpecifications = async () => {
+    if (!productForm.name) return;
+    setAiLoading((prev) => ({ ...prev, specifications: true }));
+    try {
+      const prompt = PROMPT_SPECIFICATIONS(productForm.name);
+      const result = await fetchGeminiCompletion(prompt);
+      // Limpiar y parsear el JSON de la AI
+      let specs = [];
+      let jsonText = result.trim();
+      // Buscar el primer y último corchete para aislar el array
+      const firstBracket = jsonText.indexOf("[");
+      const lastBracket = jsonText.lastIndexOf("]");
+      if (firstBracket !== -1 && lastBracket !== -1) {
+        jsonText = jsonText.substring(firstBracket, lastBracket + 1);
+      }
+      // Intentar parsear normalmente
+      try {
+        specs = JSON.parse(jsonText);
+      } catch {
+        // Si falla, intentar reemplazar comillas simples por dobles
+        try {
+          specs = JSON.parse(jsonText.replace(/'/g, '"'));
+        } catch {
+          toast({ title: "Error AI", description: "La AI no devolvió especificaciones válidas", variant: "destructive" });
+          return;
+        }
+      }
+      // Validar que sea un array de objetos con title y value
+      if (!Array.isArray(specs) || !specs.every(s => s.title && s.value)) {
+        toast({ title: "Error AI", description: "La AI no devolvió especificaciones válidas", variant: "destructive" });
+        return;
+      }
+      setProductForm((prev) => ({ ...prev, specifications: specs }));
+    } catch (e) {
+      toast({ title: "Error AI", description: "No se pudo generar especificaciones", variant: "destructive" });
+    } finally {
+      setAiLoading((prev) => ({ ...prev, specifications: false }));
+    }
+  };
+
+  const handleAIGeneratePrice = async () => {
+    if (!productForm.name) return;
+    setAiLoading((prev) => ({ ...prev, price: true }));
+    try {
+      const prompt = PROMPT_PRICE(productForm.name);
+      const result = await fetchGeminiCompletion(prompt);
+      // Solo el número, sin símbolos
+      const price = result.replace(/[^\d.,]/g, "").replace(",", ".");
+      setProductForm((prev) => ({ ...prev, price }));
+    } catch (e) {
+      toast({ title: "Error AI", description: "No se pudo sugerir el precio", variant: "destructive" });
+    } finally {
+      setAiLoading((prev) => ({ ...prev, price: false }));
+    }
+  };
+
   // Renderizar el componente
   return (
     <div className="p-6">
@@ -1317,15 +1418,35 @@ export default function ProductsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="price">Precio en $</Label>
-                <Input
-                  id="price"
-                  name="price"
-                  type="number"
-                  step="0.01"
-                  value={productForm.price}
-                  onChange={handleProductFormChange}
-                  placeholder="0.00"
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="price"
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    value={productForm.price}
+                    onChange={handleProductFormChange}
+                    placeholder="0.00"
+                  />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled={!productForm.name}
+                          onClick={handleAIGeneratePrice}
+                          className="h-8 w-8"
+                        >
+                          {aiLoading.price ? <Loader className="animate-spin h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {productForm.name ? "Sugerir precio" : "Ingresa el nombre del producto"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
             </div>
 
@@ -1343,26 +1464,66 @@ export default function ProductsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="shortDescription">Descripción corta</Label>
-              <Textarea
-                id="shortDescription"
-                name="shortDescription"
-                value={productForm.shortDescription}
-                onChange={handleProductFormChange}
-                placeholder="Breve descripción del producto"
-                rows={2}
-              />
+              <div className="flex items-center gap-2">
+                <Textarea
+                  id="shortDescription"
+                  name="shortDescription"
+                  value={productForm.shortDescription}
+                  onChange={handleProductFormChange}
+                  placeholder="Breve descripción del producto"
+                  rows={2}
+                />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled={!productForm.name}
+                        onClick={handleAIGenerateShortDescription}
+                        className="h-8 w-8"
+                      >
+                        {aiLoading.shortDescription ? <Loader className="animate-spin h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {productForm.name ? "Generar descripción corta" : "Ingresa el nombre del producto"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="description">Descripción completa</Label>
-              <Textarea
-                id="description"
-                name="description"
-                value={productForm.description}
-                onChange={handleProductFormChange}
-                placeholder="Descripción detallada del producto"
-                rows={4}
-              />
+              <div className="flex items-center gap-2">
+                <Textarea
+                  id="description"
+                  name="description"
+                  value={productForm.description}
+                  onChange={handleProductFormChange}
+                  placeholder="Descripción detallada del producto"
+                  rows={4}
+                />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled={!productForm.name}
+                        onClick={handleAIGenerateDescription}
+                        className="h-8 w-8"
+                      >
+                        {aiLoading.description ? <Loader className="animate-spin h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {productForm.name ? "Generar descripción completa" : "Ingresa el nombre del producto"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -1392,7 +1553,7 @@ export default function ProductsPage() {
               )}
 
               {/* Formulario para agregar nueva especificación */}
-              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+              <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 items-end">
                 <div>
                   <Label htmlFor="specTitle">Título</Label>
                   <Input
@@ -1416,6 +1577,24 @@ export default function ProductsPage() {
                 <Button type="button" onClick={addSpecification}>
                   Agregar
                 </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled={!productForm.name}
+                        onClick={handleAIGenerateSpecifications}
+                        className="h-8 w-8"
+                      >
+                        {aiLoading.specifications ? <Loader className="animate-spin h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {productForm.name ? "Generar especificaciones" : "Ingresa el nombre del producto"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
 
