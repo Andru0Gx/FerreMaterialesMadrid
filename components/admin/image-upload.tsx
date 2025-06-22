@@ -11,11 +11,13 @@ interface ImageUploadProps {
   onUpload: (urls: string[]) => void
   maxFiles?: number
   className?: string
+  productId?: number | string // Nuevo: para asociar imágenes al producto
 }
 
-export function ImageUpload({ onUpload, maxFiles = 5, className }: ImageUploadProps) {
+export function ImageUpload({ onUpload, maxFiles = 5, className, productId, initialImages = [] }: ImageUploadProps & { initialImages?: string[] }) {
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [imageList, setImageList] = useState<string[]>(initialImages)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -43,32 +45,30 @@ export function ImageUpload({ onUpload, maxFiles = 5, className }: ImageUploadPr
   }
 
   const handleFiles = async (files: FileList) => {
-    // Convertir FileList a Array para poder filtrar
     const fileArray = Array.from(files)
-
-    // Filtrar solo archivos de imagen
     const imageFiles = fileArray.filter((file) => file.type.startsWith("image/")).slice(0, maxFiles)
-
     if (imageFiles.length === 0) return
-
     setIsUploading(true)
-
     try {
-      // Simular carga de archivos
-      // En un entorno real, aquí se cargarían los archivos a un servidor
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Generar URLs temporales para las imágenes
-      // En un entorno real, estas serían las URLs devueltas por el servidor
-      const urls = imageFiles.map((file) => URL.createObjectURL(file))
-
-      onUpload(urls)
+      // Subir cada imagen al endpoint /api/upload/products
+      const uploadPromises = imageFiles.map(async (file) => {
+        const formData = new FormData()
+        formData.append("file", file)
+        if (productId) formData.append("productId", String(productId))
+        const res = await fetch("/api/upload/products", {
+          method: "POST",
+          body: formData,
+        })
+        if (!res.ok) throw new Error("Error al subir imagen")
+        const data = await res.json()
+        return data.url as string
+      })
+      const urls = await Promise.all(uploadPromises)
+      handleUpload(urls)
     } catch (error) {
       console.error("Error al cargar imágenes:", error)
     } finally {
       setIsUploading(false)
-
-      // Limpiar el input de archivos
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
@@ -77,6 +77,25 @@ export function ImageUpload({ onUpload, maxFiles = 5, className }: ImageUploadPr
 
   const handleButtonClick = () => {
     fileInputRef.current?.click()
+  }
+
+  const handleDelete = async (url: string) => {
+    try {
+      const res = await fetch(`/api/upload/products?url=${encodeURIComponent(url)}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Error al eliminar la imagen')
+      const newList = imageList.filter(img => img !== url)
+      setImageList(newList)
+      onUpload(newList)
+    } catch (error) {
+      console.error('Error al eliminar imagen:', error)
+    }
+  }
+
+  // Modificar onUpload para actualizar el estado local
+  const handleUpload = (urls: string[]) => {
+    const newList = [...imageList, ...urls]
+    setImageList(newList)
+    onUpload(newList)
   }
 
   return (
@@ -108,6 +127,22 @@ export function ImageUpload({ onUpload, maxFiles = 5, className }: ImageUploadPr
           onChange={handleFileChange}
           disabled={isUploading}
         />
+      </div>
+      {/* Mostrar imágenes y botón de eliminar */}
+      <div className="flex flex-wrap gap-2 mt-4">
+        {imageList.map((url) => (
+          <div key={url} className="relative group">
+            <img src={url} alt="Imagen del producto" className="w-24 h-24 object-cover rounded" />
+            <button
+              type="button"
+              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-80 hover:opacity-100"
+              onClick={() => handleDelete(url)}
+              title="Eliminar imagen"
+            >
+              ×
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   )
