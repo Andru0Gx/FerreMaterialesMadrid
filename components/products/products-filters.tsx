@@ -165,7 +165,7 @@ export default function ProductsFilters({
             />
             <div className="flex items-center justify-between">
               <span className="text-sm">${filters.priceRange[0]}</span>
-              <span className="text-sm">${filters.priceRange[1]}</span>
+              <span className="text-sm">{filters.priceRange[1] === Infinity ? '$ Max' : `$${filters.priceRange[1]}`}</span>
             </div>
           </div>
         )}
@@ -208,7 +208,7 @@ export default function ProductsFilters({
         />
         <div className="flex items-center justify-between">
           <span className="text-sm">${filters.priceRange[0]}</span>
-          <span className="text-sm">${filters.priceRange[1]}</span>
+          <span className="text-sm">{filters.priceRange[1] === Infinity ? '$ Max' : `$${filters.priceRange[1]}`}</span>
         </div>
       </div>
 

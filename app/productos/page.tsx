@@ -7,7 +7,6 @@ import ProductsFilters, { type Filters } from "@/components/products/products-fi
 import ProductsSorting from "@/components/products/products-sorting"
 import { ProductsSearch } from "@/components/products/products-search"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getProducts } from "@/lib/data"
 import type { Product } from "@/lib/types"
 
 export default function ProductsPage() {
@@ -37,7 +36,7 @@ export default function ProductsPage() {
   // Calculate max price for the price slider
   const maxPrice = useMemo(() => {
     if (products.length === 0) return 1000; // Valor por defecto si no hay productos
-    return Math.ceil(Math.max(...products.map((p) => p.price)) / 100) * 100
+    return Math.max(...products.map((p) => p.price));
   }, [products])
 
   // Initialize filters from URL parameters
@@ -52,12 +51,22 @@ export default function ProductsPage() {
       categories: category ? [category.toLowerCase()] : [],
       priceRange: [
         minPrice ? Number(minPrice) : 0,
-        maxPriceParam ? Number(maxPriceParam) : maxPrice,
+        maxPriceParam ? Number(maxPriceParam) : Infinity,
       ] as [number, number],
       inStock: inStock === "true",
       onSale: onSale === "true",
     }
   })
+
+  // Sincronizar el filtro de precio máximo con el maxPrice real cuando cambie
+  useEffect(() => {
+    if (filters.priceRange[1] === Infinity && maxPrice !== 1000 && products.length > 0) {
+      setFilters((prev) => ({
+        ...prev,
+        priceRange: [prev.priceRange[0], maxPrice],
+      }))
+    }
+  }, [maxPrice, products.length])
 
   // Update URL when filters change
   useEffect(() => {
@@ -131,7 +140,7 @@ export default function ProductsPage() {
       }
 
       // In stock filter
-      if (filters.inStock && product.inStock === false) {
+      if (filters.inStock && product.stock <= 0) {
         return false
       }
 
