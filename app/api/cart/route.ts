@@ -2,22 +2,6 @@ import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import type { CartItem } from "@/lib/types"
 
-// Códigos promocionales de ejemplo (en producción esto vendría de la base de datos)
-const promoCodes = [
-    {
-        code: "DESCUENTO10",
-        discountType: "percentage",
-        discountValue: 10,
-        isActive: true,
-    },
-    {
-        code: "AHORRA5",
-        discountType: "fixed",
-        discountValue: 5,
-        isActive: true,
-    },
-]
-
 export async function GET(request: Request) {
     try {
         // Obtener el userId del header de autorización
@@ -36,7 +20,18 @@ export async function GET(request: Request) {
         const url = new URL(request.url)
         const discountCode = url.searchParams.get('discountCode')?.toUpperCase()
 
-        let cart = user?.cart as CartItem[] || []
+        let cart: CartItem[] = []
+        if (user?.cart) {
+            try {
+                // If cart is stored as JSON, parse and validate it's an array
+                const parsed = typeof user.cart === "string" ? JSON.parse(user.cart) : user.cart
+                if (Array.isArray(parsed)) {
+                    cart = parsed as CartItem[]
+                }
+            } catch (e) {
+                cart = []
+            }
+        }
         let discount = 0
         let discountInfo = null
 
@@ -100,22 +95,31 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
     try {
         // Obtener el userId del header de autorización
-        const userId = request.headers.get('x-user-id')
+        const userId = request.headers.get('x-user-id')?.trim();
 
         if (!userId) {
-            return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+            return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
-        const { cart } = await request.json()
+        // Verificar si el usuario existe
+        const userExists = await prisma.user.findUnique({
+            where: { id: userId },
+        });
+
+        if (!userExists) {
+            return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+        }
+
+        const { cart } = await request.json();
 
         await prisma.user.update({
             where: { id: userId },
             data: { cart }
-        })
+        });
 
-        return NextResponse.json({ success: true })
+        return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Error updating cart:', error)
-        return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+        console.error('Error updating cart:', error);
+        return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
     }
-} 
+}
