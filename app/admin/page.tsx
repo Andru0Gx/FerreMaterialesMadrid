@@ -39,21 +39,19 @@ function RecentOrders({ period }: { period: string }) {
   return (
     <div className="space-y-4">
       {orders.map((order: any) => (
-        <Link href={`/admin/pedidos/${order.id}`} key={order.id} className="block">
-          <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
-            <div className="space-y-1 min-w-0">
-              <p className="font-medium truncate">{order.customer || order.userId || 'Sin cliente'}</p>
-              <p className="text-sm text-muted-foreground truncate">
-                {new Date(order.createdAt).toLocaleDateString()} - <span className="font-mono">{order.orderNumber}</span>
-              </p>
-            </div>
-            <Badge variant={order.status === 'COMPLETED' ? 'default' : order.status === 'PROCESSING' ? 'secondary' : 'outline'}>
-              {order.status === 'COMPLETED' ? 'Completado' :
-                order.status === 'PROCESSING' ? 'Procesando' : order.status === 'CANCELLED' ? 'Cancelado' : 'Pendiente'}
-            </Badge>
-            <div className="font-medium whitespace-nowrap">${order.total?.toFixed(2)}</div>
+        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+          <div className="space-y-1 min-w-0">
+            <p className="font-medium truncate">{order.customer || order.userId || 'Sin cliente'}</p>
+            <p className="text-sm text-muted-foreground truncate">
+              {new Date(order.createdAt).toLocaleDateString()} - <span className="font-mono">{order.orderNumber}</span>
+            </p>
           </div>
-        </Link>
+          <Badge variant={order.status === 'COMPLETED' ? 'default' : order.status === 'PROCESSING' ? 'secondary' : 'outline'}>
+            {order.status === 'COMPLETED' ? 'Completado' :
+              order.status === 'PROCESSING' ? 'Procesando' : order.status === 'CANCELLED' ? 'Cancelado' : 'Pendiente'}
+          </Badge>
+          <div className="font-medium whitespace-nowrap">${order.total?.toFixed(2)}</div>
+        </div>
       ))}
     </div>
   )
@@ -68,7 +66,7 @@ function TopProductsChart({ period }: { period: string }) {
   return (
     <div className="w-full space-y-4">
       {topProducts.map((product: any) => (
-        <Link href={`/admin/productos/${product.id}`} key={product.id} className="block">
+        <Link href={`/productos/${product.id}`} key={product.id} className="block">
           <div className="w-full border rounded-lg p-4 hover:bg-accent transition-colors">
             <div className="flex justify-between items-center w-full">
               <div className="flex-1 min-w-0">
