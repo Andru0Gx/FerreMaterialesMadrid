@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { MobileSidebar } from "@/components/admin/mobile-sidebar"
 import { useAuth } from "@/hooks/use-auth"
+import { OrderNotificationListener } from "@/components/admin/order-notification-listener"
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, isAdmin, loading } = useAuth()
@@ -56,6 +57,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <OrderNotificationListener />
       <div className="flex flex-1">
         <aside className="hidden w-64 border-r md:block">
           <AdminSidebar />
