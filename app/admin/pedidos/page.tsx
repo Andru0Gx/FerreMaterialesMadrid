@@ -974,7 +974,7 @@ export default function OrdersPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleViewInvoice(order)}>
                             <FileText className="mr-2 h-4 w-4" />
-                            Ver factura
+                            Ver voucher de compra
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1272,10 +1272,10 @@ export default function OrdersPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center justify-between">
-                  <span>Factura #{selectedOrder.orderNumber}</span>
+                  <span>Voucher de Compra {selectedOrder.orderNumber}</span>
                   <Button variant="outline" size="sm" onClick={handlePrintInvoice}>
                     <Printer className="h-4 w-4 mr-2" />
-                    Imprimir
+                    Imprimir Voucher
                   </Button>
                 </DialogTitle>
               </DialogHeader>
@@ -1286,7 +1286,7 @@ export default function OrdersPage() {
                     <div className="text-2xl font-bold tracking-tight">FERRE MATERIALES MADRID</div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">FACTURA #{selectedOrder.orderNumber}</p>
+                    <p className="font-bold">VOUCHER DE COMPRA {selectedOrder.orderNumber}</p>
                     <p>Fecha: {new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
@@ -1380,7 +1380,7 @@ export default function OrdersPage() {
 
                 <div className="text-center text-sm mt-10 pt-4 border-t">
                   <p className="mb-1">Gracias por su compra</p>
-                  <p>Este documento es una factura válida para fines fiscales</p>
+                  <p>Este documento es un voucher válido</p>
                 </div>
               </div>
 
@@ -1390,7 +1390,7 @@ export default function OrdersPage() {
                 </Button>
                 <Button onClick={handlePrintInvoice}>
                   <Printer className="h-4 w-4 mr-2" />
-                  Imprimir Factura
+                  Imprimir Voucher
                 </Button>
               </DialogFooter>
             </>
