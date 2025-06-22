@@ -66,7 +66,7 @@ interface OrderItem {
   }
 }
 
-type OrderStatus = "PENDING" | "PROCESSING" | "SHIPPED" | "CANCELLED" | "COMPLETED"
+type OrderStatus = "PENDING" | "PROCESSING" | "SHIPPED" | "CANCELLED" | "COMPLETED" | "DELIVERED"
 type PaymentStatus = "PENDING" | "PAID" | "FAILED"
 type PaymentMethod = "PAGO_MOVIL" | "TRANSFERENCIA"
 
@@ -85,6 +85,7 @@ const translateOrderStatus = (status: OrderStatus): string => {
     SHIPPED: "Enviado",
     CANCELLED: "Cancelado",
     COMPLETED: "Completado",
+    DELIVERED: "Entregado", // Agregar valor faltante
   };
   return translations[status] || status;
 };
@@ -98,11 +99,14 @@ const translatePaymentStatus = (status: PaymentStatus): string => {
   return translations[status] || status;
 };
 
-const translatePaymentMethod = (method: PaymentMethod | null): string => {
+const translatePaymentMethod = (method: string | null): string => {
   if (!method) return "No especificado";
-  const translations: Record<PaymentMethod, string> = {
+  const translations: Record<string, string> = {
     PAGO_MOVIL: "Pago Móvil",
     TRANSFERENCIA: "Transferencia",
+    EFECTIVO: "Efectivo",
+    TARJETA: "Tarjeta",
+    OTRO: "Otro",
   };
   return translations[method] || method;
 };
@@ -780,7 +784,7 @@ export default function OrdersPage() {
                 >
                   <div className="flex items-center">
                     ID Pedido
-                    {sortColumn === "id" ? (
+                    {sortColumn === "orderNumber" ? (
                       sortDirection === "asc" ? (
                         <ChevronUp className="ml-1 h-4 w-4" />
                       ) : (
@@ -831,7 +835,7 @@ export default function OrdersPage() {
                 >
                   <div className="flex items-center">
                     Monto
-                    {sortColumn === "amount" ? (
+                    {sortColumn === "total" ? (
                       sortDirection === "asc" ? (
                         <ChevronUp className="ml-1 h-4 w-4" />
                       ) : (
@@ -861,11 +865,11 @@ export default function OrdersPage() {
                 </th>
                 <th
                   className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
-                  onClick={() => handleSort("payment")}
+                  onClick={() => handleSort("paymentStatus")}
                 >
                   <div className="flex items-center">
                     Estado de pago
-                    {sortColumn === "payment" ? (
+                    {sortColumn === "paymentStatus" ? (
                       sortDirection === "asc" ? (
                         <ChevronUp className="ml-1 h-4 w-4" />
                       ) : (
@@ -1071,8 +1075,8 @@ export default function OrdersPage() {
                     ) : (
                       <div className="space-y-1">
                         <p className="font-medium">{selectedOrder.shippingAddress?.name}</p>
-                        <p>{selectedOrder.shippingAddress?.address}</p>
-                        <p>{selectedOrder.shippingAddress?.city}, {selectedOrder.shippingAddress?.zip}</p>
+                        <p>{selectedOrder.shippingAddress?.address || "Dirección no especificada"}</p>
+                        <p>{selectedOrder.shippingAddress?.city || "Ciudad no especificada"}, {selectedOrder.shippingAddress?.zip || "Código postal no especificado"}</p>
                       </div>
                     )}
                   </CardContent>
@@ -1149,7 +1153,7 @@ export default function OrdersPage() {
                       <tbody>
                         {selectedOrder.items.map((item) => (
                           <tr key={`detail-item-${item.id}`} className="border-b">
-                            <td className="py-3 px-4">{item.product.name}</td>
+                            <td className="py-3 px-4">{allProducts.find(p => p.id === item.productId)?.name || "Producto desconocido"}</td>
                             <td className="text-right py-3 px-4">{item.quantity}</td>
                             <td className="text-right py-3 px-4">{formatCurrency(item.price)}</td>
                             <td className="text-right py-3 px-4">{formatCurrency(item.price * item.quantity)}</td>
@@ -1329,7 +1333,7 @@ export default function OrdersPage() {
                     <tbody>
                       {selectedOrder.items.map((item) => (
                         <tr key={`invoice-item-${item.id}`} className="bg-white">
-                          <td className="py-2 px-4 border-b">{item.product.name}</td>
+                          <td className="py-2 px-4 border-b">{allProducts.find(p => p.id === item.productId)?.name || "Producto desconocido"}</td>
                           <td className="text-right py-2 px-4 border-b">{item.quantity}</td>
                           <td className="text-right py-2 px-4 border-b">{formatCurrency(item.price)}</td>
                           <td className="text-right py-2 px-4 border-b">
