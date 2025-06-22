@@ -64,6 +64,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
       image: product.images[0],
       category: product.category,
       quantity,
+      discount: product.discount,
     })
 
     router.push("/carrito")
@@ -132,19 +133,28 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           </div>
 
           <div className="flex flex-col gap-4">
-            <ProductQuantity initialQuantity={1} onChange={handleQuantityChange} />
+            {/* ProductQuantity solo si hay stock */}
+            {product.stock > 0 ? (
+              <ProductQuantity initialQuantity={1} onChange={handleQuantityChange} />
+            ) : null}
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <AddToCartButton
-                product={product}
-                quantity={quantity}
-                className="flex-1"
-                onAddToCart={handleAddedToCart}
-              />
-              <Button variant="outline" className="flex-1" onClick={handleBuyNow}>
+              {/* AddToCartButton solo si hay stock */}
+              {product.stock > 0 ? (
+                <AddToCartButton
+                  product={product}
+                  quantity={quantity}
+                  className="flex-1"
+                  onAddToCart={handleAddedToCart}
+                />
+              ) : null}
+              <Button variant="outline" className="flex-1" onClick={handleBuyNow} disabled={product.stock <= 0}>
                 Comprar ahora
               </Button>
             </div>
+            {product.stock <= 0 && (
+              <div className="text-red-600 text-sm font-semibold mt-2">Producto agotado</div>
+            )}
           </div>
 
           <div className="flex flex-col gap-3 mt-4">

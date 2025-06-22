@@ -52,8 +52,9 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
     }
 
     return () => {
-      if (scrollElement) {
-        scrollElement.removeEventListener("scroll", handleScroll)
+      const element = scrollElement as HTMLDivElement | null
+      if (element) {
+        element.removeEventListener("scroll", handleScroll)
       }
     }
   }, [])

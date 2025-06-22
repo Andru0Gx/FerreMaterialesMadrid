@@ -25,12 +25,18 @@ export default function AddToCartButton({ product, quantity, className, onAddToC
     // Simulamos una pequeña demora para mostrar el estado de carga
     setTimeout(() => {
       addToCart({
-        id: product.id,
+        id: String(product.id),
         name: product.name,
         price: product.price,
-        image: product.images[0],
+        image:
+          Array.isArray(product.images) && product.images.length > 0
+            ? (typeof product.images[0] === "string"
+              ? product.images[0]
+              : (product.images[0] as { imageUrl?: string }).imageUrl || "/placeholder.svg")
+            : "/placeholder.svg",
         category: product.category,
         quantity,
+        discount: typeof product.discount === "number" ? product.discount : 0,
       })
 
       toast({
