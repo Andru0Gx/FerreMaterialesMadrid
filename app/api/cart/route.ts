@@ -65,6 +65,19 @@ export async function GET(request: Request) {
             })
 
             if (promoCode) {
+                // Si el código es por uso y maxUsage llega a 0, desactívalo
+                if (promoCode.maxUsage !== null && promoCode.maxUsage <= 0) {
+                    await prisma.promotion.update({
+                        where: { id: promoCode.id },
+                        data: { active: false }
+                    })
+                    return NextResponse.json({
+                        cart,
+                        discount: null,
+                        error: 'El código promocional ya no está disponible.'
+                    })
+                }
+
                 const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0)
 
                 if (promoCode.discountType === "PORCENTAJE") {
@@ -77,7 +90,9 @@ export async function GET(request: Request) {
                     code: promoCode.couponCode,
                     type: promoCode.discountType === "PORCENTAJE" ? "percentage" : "fixed",
                     value: promoCode.discountValue,
-                    discountAmount: discount
+                    discountAmount: discount,
+                    promoId: promoCode.id,
+                    isByUsage: promoCode.maxUsage !== null
                 }
             }
         }

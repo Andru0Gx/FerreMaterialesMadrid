@@ -210,6 +210,23 @@ export async function POST(request: Request) {
             }
         })
 
+        // Si la orden tiene código de descuento por uso, descuéntale 1 y desactívalo si llega a 0
+        if (data.discount?.code) {
+            const promo = await prisma.promotion.findFirst({
+                where: { couponCode: data.discount.code }
+            })
+            if (promo && promo.maxUsage !== null) {
+                const newMaxUsage = promo.maxUsage - 1
+                await prisma.promotion.update({
+                    where: { id: promo.id },
+                    data: {
+                        maxUsage: newMaxUsage,
+                        active: newMaxUsage > 0
+                    }
+                })
+            }
+        }
+
         // Actualizar el stock de los productos
         for (const item of data.items) {
             await prisma.product.update({
