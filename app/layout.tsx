@@ -8,9 +8,10 @@ import Footer from "@/components/footer"
 import { CartProvider } from "@/context/cart-context"
 import { AuthProvider } from "@/hooks/use-auth"
 import { Toaster } from "@/components/ui/toaster"
+import { COMPANY_INFO } from "@/lib/data"
 
 export const metadata: Metadata = {
-  title: "FerreMateriales Madrid - Tu ferretería de confianza",
+  title: `${COMPANY_INFO.nombre} - Tu ferretería de confianza`,
   description: "Encuentra todo lo que necesitas para tus proyectos de construcción, remodelación y bricolaje.",
 }
 

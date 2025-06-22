@@ -1,4 +1,5 @@
 import { Instagram, MapPin, Phone, Clock, Copyright } from "lucide-react"
+import { COMPANY_INFO } from "@/lib/data"
 
 export default function Footer() {
   return (
@@ -25,7 +26,7 @@ export default function Footer() {
               rel="noreferrer"
             >
               <Phone className="h-5 w-5" />
-              <span>+58 412-4111616 </span>
+              <span>{COMPANY_INFO.telefono} </span>
             </a>
           </li>
 
@@ -40,11 +41,11 @@ export default function Footer() {
           <li>
             <div className="flex items-center space-x-5">
               <MapPin className="h-5 w-5" />
-              <span>Ferremat.Madrid@gmail.com</span>
+              <span>{COMPANY_INFO.email}</span>
             </div>
           </li>
 
-          <li>© {new Date().getFullYear()} Ferre Materiales Madrid. Todos los derechos reservados.</li>
+          <li>© {new Date().getFullYear()} {COMPANY_INFO.nombre}. Todos los derechos reservados.</li>
         </ul>
       </div>
     </footer>

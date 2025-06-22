@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Logo } from "@/components/ui/logo"
+import { COMPANY_INFO } from "@/lib/data"
 
 const formSchema = z.object({
   email: z.string().email({
@@ -82,7 +83,7 @@ export default function LoginPage() {
       <Card className="mx-auto max-w-md shadow-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold">Iniciar sesión</CardTitle>
-          <CardDescription className="text-lg">Accede a tu cuenta de Ferre Materiales Madrid</CardDescription>
+          <CardDescription className="text-lg">Accede a tu cuenta de {COMPANY_INFO.nombre}</CardDescription>
         </CardHeader>
 
         <CardContent>

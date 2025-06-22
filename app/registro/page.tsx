@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Logo } from "@/components/ui/logo"
+import { COMPANY_INFO } from "@/lib/data"
 
 const formSchema = z
   .object({
@@ -115,7 +116,7 @@ export default function RegisterPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold">Crear una cuenta</CardTitle>
           <CardDescription className="text-lg">
-            Completa el formulario para registrarte en Ferre Materiales Madrid
+            Completa el formulario para registrarte en {COMPANY_INFO.nombre}
           </CardDescription>
         </CardHeader>
 

@@ -6,3 +6,43 @@ export const COMPANY_INFO = {
   telefono: "+58 412-4111616",
   email: "Ferremat.Madrid@gmail.com"
 }
+
+
+export type Category = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+export const categories: Category[] = [
+  {
+    id: "herramientas",
+    name: "Herramientas",
+    slug: "herramientas",
+  },
+  {
+    id: "materiales",
+    name: "Materiales",
+    slug: "materiales",
+  },
+  {
+    id: "electricidad",
+    name: "Electricidad",
+    slug: "electricidad",
+  },
+  {
+    id: "plomeria",
+    name: "Plomería",
+    slug: "plomeria",
+  },
+  {
+    id: "jardineria",
+    name: "Jardinería",
+    slug: "jardineria",
+  },
+  {
+    id: "pinturas",
+    name: "Pinturas",
+    slug: "pinturas",
+  },
+]
