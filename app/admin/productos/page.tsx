@@ -788,6 +788,16 @@ export default function ProductsPage() {
     })
   }
 
+  // Función para editar una especificación existente
+  const handleEditSpecification = (index: number, field: 'title' | 'value', value: string) => {
+    setProductForm((prev) => ({
+      ...prev,
+      specifications: prev.specifications.map((spec, i) =>
+        i === index ? { ...spec, [field]: value } : spec
+      ),
+    }));
+  };
+
   // Función para quitar el descuento de un producto
   const removeDiscount = async (product: any) => {
     try {
@@ -1534,9 +1544,19 @@ export default function ProductsPage() {
                 <div className="space-y-2 mb-4">
                   {productForm.specifications.map((spec, index) => (
                     <div key={index} className="flex items-center gap-2 p-2 border rounded-md bg-gray-50">
-                      <div className="flex-1">
-                        <p className="font-medium">{spec.title}</p>
-                        <p className="text-sm text-gray-500">{spec.value}</p>
+                      <div className="flex-1 flex gap-2">
+                        <Input
+                          className="font-medium"
+                          value={spec.title}
+                          onChange={e => handleEditSpecification(index, 'title', e.target.value)}
+                          placeholder="Título"
+                        />
+                        <Input
+                          className="text-sm text-gray-500"
+                          value={spec.value}
+                          onChange={e => handleEditSpecification(index, 'value', e.target.value)}
+                          placeholder="Valor"
+                        />
                       </div>
                       <Button
                         type="button"
