@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Trash2, Tag } from "lucide-react"
@@ -64,6 +64,27 @@ export default function CartPage() {
       description: "Se ha removido el código de descuento",
     })
   }
+
+  // Eliminar productos agotados del carrito al cargar la página
+  useEffect(() => {
+    const checkStockAndCleanCart = async () => {
+      for (const item of cart) {
+        // Consultar el stock actual del producto
+        try {
+          const res = await fetch(`/api/products?id=${item.id}`)
+          if (!res.ok) continue
+          const product = await res.json()
+          if (!product || product.stock <= 0) {
+            removeFromCart(item.id)
+            // FUTURO: Notificar al usuario por correo que el producto fue eliminado del carrito por estar agotado
+          }
+        } catch (e) {
+          // Si hay error, no hacer nada
+        }
+      }
+    }
+    if (cart.length > 0) checkStockAndCleanCart()
+  }, [cart, removeFromCart])
 
   if (cart.length === 0) {
     return (
