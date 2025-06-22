@@ -93,6 +93,10 @@ interface Order {
   userId?: string | null
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED" | "SHIPPED"
   total: number
+  subtotal?: number | null
+  discountAmount?: number | null
+  taxAmount?: number | null
+  shippingAmount?: number | null
   itemsCount: number
   phone?: string | null
   email?: string | null
@@ -102,7 +106,6 @@ interface Order {
   shippingAddressId?: string | null
   paymentReceipt?: string | null
   discountCode?: string | null
-  discountAmount?: number | null
   createdAt: string
   updatedAt: string
   paymentMethod?: "PAGO_MOVIL" | "TRANSFERENCIA" | "EFECTIVO" | "TARJETA" | "OTRO" | null
@@ -146,13 +149,11 @@ export default function PedidoDetallePage({ params }: { params: { id: string } }
   }
 
   // Cálculos igual que en el carrito
-  const subtotal = order?.items?.reduce((total, item) => total + item.price * item.quantity, 0) || 0
-  const discountAmount = order?.discountAmount || 0
-  const subtotalAfterDiscount = subtotal - discountAmount
-  const tax = subtotalAfterDiscount * 0.16
-  // Si tienes lógica de envío gratis, puedes adaptarla aquí:
-  const shipping = order?.shippingAddress && subtotalAfterDiscount >= 100 ? 0 : 10 // ejemplo: gratis desde $100
-  const total = subtotalAfterDiscount + tax + shipping
+  const subtotal = order?.subtotal ?? 0
+  const discountAmount = order?.discountAmount ?? 0
+  const tax = order?.taxAmount ?? 0
+  const shipping = order?.shippingAmount ?? 0
+  const total = order?.total ?? 0
 
   useEffect(() => {
     if (!user) {

@@ -46,7 +46,15 @@ import {
 import { formatCurrency } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
-import type { Order } from "@/lib/types"
+import type { Order as OriginalOrder } from "@/lib/types"
+
+type Order = OriginalOrder & {
+  subtotal?: number,
+  total?: number,
+  taxAmount?: number,
+  shippingAmount?: number,
+  paymentMethod?: string,
+}
 import Image from "next/image"
 import { LogoExtendido } from "@/components/ui/logo"
 import { COMPANY_INFO } from "@/lib/data"
@@ -54,6 +62,7 @@ import { COMPANY_INFO } from "@/lib/data"
 // Actualizar las interfaces
 interface OrderItem {
   id: number
+  productId: number
   quantity: number
   price: number
   discount: number
@@ -1166,34 +1175,38 @@ export default function OrdersPage() {
                       </thead>
                       <tbody>
                         {selectedOrder.items.map((item) => (
-                          <tr key={`detail-item-${item.id}`} className="border-b">
-                            <td className="py-3 px-4">{allProducts.find(product => product.id === String(item.productId))?.name || "Nombre no disponible"}</td>
-                            <td className="text-right py-3 px-4">{item.quantity}</td>
-                            <td className="text-right py-3 px-4">{formatCurrency(item.price)}</td>
-                            <td className="text-right py-3 px-4">{formatCurrency(item.price * item.quantity)}</td>
+                          <tr key={`invoice-item-${item.id}`} className="bg-white">
+                            <td className="py-2 px-4 border-b">{allProducts.find(product => product.id === String(item.productId))?.name || "Nombre no disponible"}</td>
+                            <td className="text-right py-2 px-4 border-b">{item.quantity}</td>
+                            <td className="text-right py-2 px-4 border-b">{formatCurrency(item.price)}</td>
+                            <td className="text-right py-2 px-4 border-b">
+                              {formatCurrency(item.price * item.quantity)}
+                            </td>
                           </tr>
                         ))}
                         <tr>
                           <td colSpan={3} className="text-right py-3 px-4 font-medium">Subtotal</td>
-                          <td className="text-right py-3 px-4 font-medium">
-                            {formatCurrency(selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0))}
+                          <td className="text-right py-3 px-4 font-medium">{formatCurrency(selectedOrder.subtotal ?? 0)}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={3} className={`text-right py-3 px-4 ${selectedOrder.discountAmount && selectedOrder.discountAmount > 0 ? 'text-green-600' : 'text-gray-500'}`}>Descuento</td>
+                          <td className={`text-right py-3 px-4 ${selectedOrder.discountAmount && selectedOrder.discountAmount > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                            {selectedOrder.discountAmount && selectedOrder.discountAmount > 0
+                              ? `-${formatCurrency(selectedOrder.discountAmount)}`
+                              : formatCurrency(0)}
                           </td>
                         </tr>
-                        {selectedOrder.discountCode && (
-                          <tr>
-                            <td colSpan={3} className="text-right py-3 px-4 text-green-600">
-                              Descuento (Código: {selectedOrder.discountCode})
-                            </td>
-                            <td className="text-right py-3 px-4 text-green-600">
-                              -{formatCurrency(selectedOrder.discountAmount || 0)}
-                            </td>
-                          </tr>
-                        )}
+                        <tr>
+                          <td colSpan={3} className="text-right py-3 px-4 font-medium">IVA (16%)</td>
+                          <td className="text-right py-3 px-4 font-medium">{formatCurrency(selectedOrder.taxAmount ?? 0)}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={3} className="text-right py-3 px-4 font-medium">Envío</td>
+                          <td className="text-right py-3 px-4 font-medium">{selectedOrder.shippingAmount === 0 ? "Gratis" : formatCurrency(selectedOrder.shippingAmount ?? 0)}</td>
+                        </tr>
                         <tr>
                           <td colSpan={3} className="text-right py-3 px-4 font-medium">Total</td>
-                          <td className="text-right py-3 px-4 font-bold text-lg">
-                            {formatCurrency(selectedOrder.total)}
-                          </td>
+                          <td className="text-right py-3 px-4 font-bold text-lg">{formatCurrency(selectedOrder.total)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1376,15 +1389,27 @@ export default function OrdersPage() {
                   <div className="w-64">
                     <div className="flex justify-between py-2">
                       <span className="font-medium text-gray-600">Subtotal:</span>
-                      <span className="text-gray-700">{formatCurrency(selectedOrder.total)}</span>
+                      <span className="text-gray-700">{formatCurrency(selectedOrder.subtotal ?? 0)}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className={`font-medium ${selectedOrder.discountAmount && selectedOrder.discountAmount > 0 ? 'text-green-600' : 'text-gray-500'}`}>Descuento:</span>
+                      <span className={selectedOrder.discountAmount && selectedOrder.discountAmount > 0 ? 'text-green-600' : 'text-gray-500'}>
+                        {selectedOrder.discountAmount && selectedOrder.discountAmount > 0
+                          ? `-${formatCurrency(selectedOrder.discountAmount)}`
+                          : formatCurrency(0)}
+                      </span>
                     </div>
                     <div className="flex justify-between py-2">
                       <span className="font-medium text-gray-600">IVA (16%):</span>
-                      <span className="text-gray-700">{formatCurrency(selectedOrder.total * 0.16)}</span>
+                      <span className="text-gray-700">{formatCurrency(selectedOrder.taxAmount ?? 0)}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="font-medium text-gray-600">Envío:</span>
+                      <span className="text-gray-700">{selectedOrder.shippingAmount === 0 ? "Gratis" : formatCurrency(selectedOrder.shippingAmount ?? 0)}</span>
                     </div>
                     <div className="flex justify-between py-2 border-t mt-2 pt-2">
                       <span className="font-bold text-gray-800">TOTAL:</span>
-                      <span className="font-bold text-gray-800">{formatCurrency(selectedOrder.total * 1.16)}</span>
+                      <span className="font-bold text-gray-800">{formatCurrency(selectedOrder.total)}</span>
                     </div>
                   </div>
                 </div>

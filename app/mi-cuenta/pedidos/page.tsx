@@ -30,6 +30,10 @@ export default function PedidosPage() {
     status: string
     paymentStatus: string
     total: number
+    subtotal?: number | null
+    discountAmount?: number | null
+    taxAmount?: number | null
+    shippingAmount?: number | null
     itemsCount: number
     paymentMethod?: string | null
     paymentBank?: string | null
@@ -39,7 +43,6 @@ export default function PedidosPage() {
     email?: string | null
     notes?: string | null
     discountCode?: string | null
-    discountAmount?: number | null
     isInStore?: boolean | null
     nombre?: string | null
     statusText?: string
@@ -232,9 +235,16 @@ export default function PedidosPage() {
                       <Package className="h-4 w-4 text-gray-400" />
                       <span className="text-sm text-gray-500">{order.itemsCount} productos</span>
                     </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Subtotal: {order.subtotal?.toLocaleString("es-MX", { style: "currency", currency: "USD" }) || "-"}
+                      {order.discountAmount && order.discountAmount > 0 && (
+                        <span className="block text-green-600">Descuento: -{order.discountAmount.toLocaleString("es-MX", { style: "currency", currency: "USD" })}</span>
+                      )}
+                      <span className="block">IVA: {order.taxAmount?.toLocaleString("es-MX", { style: "currency", currency: "USD" }) || "-"}</span>
+                      <span className="block">Envío: {order.shippingAmount === 0 ? "Gratis" : order.shippingAmount?.toLocaleString("es-MX", { style: "currency", currency: "USD" })}</span>
+                    </div>
                     <p className="font-medium mt-1">
                       {order.total.toLocaleString("es-MX", { style: "currency", currency: "USD" })}
-                      {" "}
                       {exchangeRate && !rateLoading && (
                         <span className="block text-sm text-gray-500">
                           {`≈ ${(order.total * exchangeRate).toLocaleString("es-VE", { style: "currency", currency: "VES" })} (Bs)`}

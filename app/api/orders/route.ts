@@ -62,7 +62,6 @@ export async function GET(request: Request) {
         })
         return NextResponse.json(orders)
     } catch (error) {
-        console.error('Error al obtener pedidos:', error)
         return NextResponse.json(
             {
                 status: 'error',
@@ -150,9 +149,12 @@ export async function POST(request: Request) {
                     items: {
                         create: itemsToCreate
                     }
-                } as any, // Forzar el tipo para aceptar notes
+                },
                 include: {
-                    items: true
+                    items: true,
+                    shippingAddress: true,
+                    user: true,
+                    histories: true
                 }
             });
             // Crear OrderHistory inicial
@@ -245,7 +247,9 @@ export async function POST(request: Request) {
                 data: orderData,
                 include: {
                     items: true,
-                    shippingAddress: true
+                    shippingAddress: true,
+                    user: true,
+                    histories: true
                 }
             });
             await tx.orderHistory.create({
@@ -289,7 +293,6 @@ export async function POST(request: Request) {
 
         return NextResponse.json(result)
     } catch (error) {
-        console.error("Error creating order:", error)
         return NextResponse.json(
             { error: "Error al crear la orden" },
             { status: 500 }
