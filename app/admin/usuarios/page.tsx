@@ -26,7 +26,6 @@ import {
   Search,
   MoreVertical,
   Eye,
-  Mail,
   Phone,
   Lock,
   UserCog,
@@ -73,9 +72,6 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false)
   const [isChangeStatusOpen, setIsChangeStatusOpen] = useState(false)
-  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false)
-  const [emailSubject, setEmailSubject] = useState("")
-  const [emailMessage, setEmailMessage] = useState("")
   const [sortConfig, setSortConfig] = useState<SortConfig>(null)
   const { toast } = useToast()
 
@@ -157,13 +153,6 @@ export default function UsersPage() {
     setIsChangeStatusOpen(true)
   }
 
-  const handleSendEmail = (user: User) => {
-    setSelectedUser(user)
-    setEmailSubject("")
-    setEmailMessage("")
-    setIsEmailDialogOpen(true)
-  }
-
   const handleSaveStatusChange = async () => {
     if (!selectedUser) return
 
@@ -204,14 +193,6 @@ export default function UsersPage() {
         variant: "destructive"
       })
     }
-  }
-
-  const handleSendEmailSubmit = () => {
-    setIsEmailDialogOpen(false)
-    toast({
-      title: "Correo enviado",
-      description: `Se ha enviado un correo a ${selectedUser?.email} correctamente.`,
-    })
   }
 
   const getSortIcon = (key: keyof User) => {
@@ -346,10 +327,6 @@ export default function UsersPage() {
                           <DropdownMenuItem onClick={() => handleViewUserDetail(user)}>
                             <Eye className="mr-2 h-4 w-4" />
                             Ver detalles
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleSendEmail(user)}>
-                            <Mail className="mr-2 h-4 w-4" />
-                            Enviar correo
                           </DropdownMenuItem>
                           <DropdownMenuItem>
                             <Phone className="mr-2 h-4 w-4" />
@@ -523,14 +500,6 @@ export default function UsersPage() {
                 <Button variant="outline" onClick={() => setIsUserDetailOpen(false)}>
                   Cerrar
                 </Button>
-                <Button
-                  onClick={() => {
-                    setIsUserDetailOpen(false)
-                    handleSendEmail(selectedUser)
-                  }}
-                >
-                  Enviar Mensaje
-                </Button>
               </DialogFooter>
             </>
           )}
@@ -582,55 +551,6 @@ export default function UsersPage() {
                 </Button>
                 <Button type="button" onClick={handleSaveStatusChange}>
                   Guardar Cambios
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Send Email Dialog */}
-      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          {selectedUser && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Enviar Correo Electrónico</DialogTitle>
-                <DialogDescription>
-                  Enviar un mensaje a {selectedUser.name} ({selectedUser.email}).
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4 space-y-4">
-                <div>
-                  <label htmlFor="emailSubject" className="block text-sm font-medium text-gray-700 mb-1">
-                    Asunto
-                  </label>
-                  <Input
-                    id="emailSubject"
-                    placeholder="Asunto del correo"
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="emailMessage" className="block text-sm font-medium text-gray-700 mb-1">
-                    Mensaje
-                  </label>
-                  <Textarea
-                    id="emailMessage"
-                    placeholder="Escribe tu mensaje aquí..."
-                    rows={5}
-                    value={emailMessage}
-                    onChange={(e) => setEmailMessage(e.target.value)}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="button" onClick={handleSendEmailSubmit}>
-                  Enviar Correo
                 </Button>
               </DialogFooter>
             </>
