@@ -24,7 +24,8 @@ export async function GET(request: Request) {
                         }
                     },
                     shippingAddress: true,
-                    user: true
+                    user: true,
+                    histories: true // <-- incluir historial
                 }
             })
 
@@ -53,7 +54,8 @@ export async function GET(request: Request) {
                     }
                 },
                 shippingAddress: true,
-                user: true
+                user: true,
+                histories: true // <-- incluir historial
             },
             orderBy: {
                 createdAt: 'desc'

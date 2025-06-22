@@ -1,97 +1,157 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/hooks/use-auth"
-import { ChevronLeft, CreditCard, MapPin, AlertCircle } from "lucide-react"
+import { ChevronLeft, CreditCard, MapPin, AlertCircle, Printer } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { useExchangeRate } from "@/hooks/use-exchange-rate"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { LogoExtendido } from "@/components/ui/logo"
 
-// Datos de ejemplo para detalles de pedido
-const orderDetails = {
-  id: "ORD-001",
-  date: "2023-05-07",
-  status: "completed",
-  statusText: "Completado",
-  paymentStatus: "paid",
-  paymentStatusText: "Pagado",
-  total: 250.99,
-  subtotal: 229.97,
-  shipping: 4.99,
-  tax: 16.03,
-  items: [
-    {
-      id: "ITEM-001",
-      name: "Taladro Percutor Profesional 750W",
-      price: 89.99,
-      quantity: 1,
-      image: "/placeholder.svg?height=80&width=80&text=Taladro",
-    },
-    {
-      id: "ITEM-002",
-      name: "Martillo de Carpintero con Mango de Fibra",
-      price: 19.99,
-      quantity: 2,
-      image: "/placeholder.svg?height=80&width=80&text=Martillo",
-    },
-  ],
-  shippingAddress: {
-    name: "Casa",
-    address: "Calle Principal 123",
-    city: "Madrid",
-    state: "Madrid",
-    zip: "28001",
-  },
-  paymentMethod: "Tarjeta de crédito/débito",
-  notes: "Entregar en horario de tarde",
-  statusHistory: [
-    {
-      status: "pending",
-      statusText: "Pendiente",
-      date: "2023-05-05T10:30:00",
-      description: "Pedido recibido y en espera de confirmación",
-    },
-    {
-      status: "processing",
-      statusText: "En proceso",
-      date: "2023-05-06T09:15:00",
-      description: "Pedido confirmado y en preparación",
-    },
-    {
-      status: "paid",
-      statusText: "Pagado",
-      date: "2023-05-06T14:30:00",
-      description: "Pago procesado correctamente",
-    },
-    {
-      status: "shipped",
-      statusText: "Enviado",
-      date: "2023-05-06T16:45:00",
-      description: "Pedido despachado para entrega",
-    },
-    {
-      status: "completed",
-      statusText: "Completado",
-      date: "2023-05-07T14:20:00",
-      description: "Pedido entregado exitosamente",
-    },
-  ],
+// Interfaces basadas en schema.prisma
+interface User {
+  id: string
+  name: string
+  email: string
+  password: string
+  role: "CUSTOMER" | "ADMIN" | "SUPER_ADMIN"
+  phone?: string | null
+  isActive: boolean
+  isSubscribed: boolean
+  cart?: any
+  addresses: Address[]
+  orders: Order[]
 }
 
-export default function PedidoDetallePage({ params }) {
+interface Address {
+  id: string
+  userId: string
+  name: string
+  address: string
+  city: string
+  zip: string
+  user: User
+  orders: Order[]
+}
+
+interface Product {
+  id: number
+  name: string
+  sku: string
+  price: number
+  description: string
+  shortDescription: string
+  discount: number
+  stock: number
+  slug: string
+  category: string
+  specifications: any
+  images: ProductImage[]
+  orderItems: OrderItem[]
+}
+
+interface ProductImage {
+  id: number
+  imageUrl: string
+  product: Product
+  productId: number
+}
+
+interface OrderItem {
+  id: number
+  orderId: string
+  productId: number
+  quantity: number
+  price: number
+  discount: number
+  createdAt: string
+  order: Order
+  product: Product
+}
+
+interface OrderHistory {
+  id: number
+  orderId: string
+  status?: "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED" | "SHIPPED" | null
+  paymentStatus?: "PENDING" | "PAID" | "FAILED" | null
+  changedAt: string
+  order: Order
+}
+
+interface Order {
+  id: string
+  orderNumber: string
+  userId?: string | null
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED" | "SHIPPED"
+  total: number
+  itemsCount: number
+  phone?: string | null
+  email?: string | null
+  nombre?: string | null
+  isInStore: boolean
+  paymentStatus: "PENDING" | "PAID" | "FAILED"
+  shippingAddressId?: string | null
+  paymentReceipt?: string | null
+  discountCode?: string | null
+  discountAmount?: number | null
+  createdAt: string
+  updatedAt: string
+  paymentMethod?: "PAGO_MOVIL" | "TRANSFERENCIA" | "EFECTIVO" | "TARJETA" | "OTRO" | null
+  paymentBank?: string | null
+  paymentReference?: string | null
+  notes?: string | null
+  user?: User | null
+  shippingAddress?: Address | null
+  items: OrderItem[]
+  histories: OrderHistory[]
+}
+
+// Elimina los datos de ejemplo y usa el estado para el pedido
+
+export default function PedidoDetallePage({ params }: { params: { id: string } }) {
   const { user } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-  const [order, setOrder] = useState(null)
+  const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
-
   const [redirectToLogin, setRedirectToLogin] = useState(false)
+  const [isNotaDialogOpen, setIsNotaDialogOpen] = useState(false)
+  const notaRef = useRef<HTMLDivElement>(null)
+  const { rate: exchangeRate, loading: rateLoading } = useExchangeRate()
+
+  // Utilidad para formatear moneda
+  const formatCurrency = (amount: number) =>
+    amount.toLocaleString("es-VE", { style: "currency", currency: "VES", minimumFractionDigits: 2 })
+
+  // Utilidad para traducir método de pago
+  const translatePaymentMethod = (method: string | null | undefined) => {
+    if (!method) return "No especificado"
+    const translations: Record<string, string> = {
+      PAGO_MOVIL: "Pago Móvil",
+      TRANSFERENCIA: "Transferencia",
+      EFECTIVO: "Efectivo",
+      TARJETA: "Tarjeta",
+      OTRO: "Otro",
+    }
+    return translations[method] || method
+  }
+
+  // Cálculos igual que en el carrito
+  const subtotal = order?.items?.reduce((total, item) => total + item.price * item.quantity, 0) || 0
+  const discountAmount = order?.discountAmount || 0
+  const subtotalAfterDiscount = subtotal - discountAmount
+  const tax = subtotalAfterDiscount * 0.16
+  // Si tienes lógica de envío gratis, puedes adaptarla aquí:
+  const shipping = order?.shippingAddress && subtotalAfterDiscount >= 100 ? 0 : 10 // ejemplo: gratis desde $100
+  const total = subtotalAfterDiscount + tax + shipping
 
   useEffect(() => {
     if (!user) {
@@ -106,21 +166,31 @@ export default function PedidoDetallePage({ params }) {
   }, [redirectToLogin, router, params.id])
 
   useEffect(() => {
-    // Simulamos la carga de datos del pedido
-    const loadOrder = () => {
-      setLoading(true)
-      // En un caso real, aquí haríamos una llamada a la API
-      setTimeout(() => {
-        setOrder(orderDetails)
-        setLoading(false)
-      }, 500)
-    }
-
-    loadOrder()
-  }, [params.id])
+    if (!user) return
+    setLoading(true)
+    fetch(`/api/orders?id=${encodeURIComponent(params.id)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("No se pudo obtener el pedido")
+        const data = await res.json()
+        setOrder(data)
+      })
+      .catch((err) => {
+        setOrder(null)
+        toast({
+          title: "Error",
+          description: err.message || "No se pudo cargar el pedido",
+          variant: "destructive",
+        })
+      })
+      .finally(() => setLoading(false))
+  }, [params.id, user, toast])
 
   // Formatear fecha
-  const formatDate = (dateString) => {
+  interface FormatDate {
+    (dateString: string): string
+  }
+
+  const formatDate: FormatDate = (dateString) => {
     try {
       const date = new Date(dateString)
       return format(date, "d 'de' MMMM, yyyy", { locale: es })
@@ -130,7 +200,11 @@ export default function PedidoDetallePage({ params }) {
   }
 
   // Formatear fecha y hora
-  const formatDateTime = (dateString) => {
+  interface FormatDateTime {
+    (dateString: string): string
+  }
+
+  const formatDateTime: FormatDateTime = (dateString) => {
     try {
       const date = new Date(dateString)
       return format(date, "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })
@@ -139,20 +213,55 @@ export default function PedidoDetallePage({ params }) {
     }
   }
 
-  // Función para obtener el color de badge según el estado
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-800"
-      case "processing":
-      case "shipped":
-        return "bg-blue-100 text-blue-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "cancelled":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+  // Traducción de estados y colores para badges (como en mi-cuenta/pedidos)
+  const translateOrderStatus = (status: string): string => {
+    const translations: Record<string, string> = {
+      PENDING: "Pendiente",
+      PROCESSING: "Procesando",
+      SHIPPED: "Enviado",
+      CANCELLED: "Cancelado",
+      COMPLETED: "Completado",
+      DELIVERED: "Entregado",
+      completed: "Completado",
+      processing: "Procesando",
+      shipped: "Enviado",
+      cancelled: "Cancelado",
+      pending: "Pendiente",
+      delivered: "Entregado",
+    }
+    return translations[status] || status
+  }
+  const translatePaymentStatus = (status: string): string => {
+    const translations: Record<string, string> = {
+      PENDING: "Pendiente",
+      PAID: "Aprobado",
+      FAILED: "Fallido",
+      paid: "Aprobado",
+      pending: "Pendiente",
+      failed: "Fallido",
+      refunded: "Reembolsado",
+      REFUNDED: "Reembolsado",
+    }
+    return translations[status] || status
+  }
+  const getStatusColor = (status: string): string => {
+    switch (status?.toUpperCase()) {
+      case "COMPLETED": return "bg-green-100 text-green-800"
+      case "PROCESSING": return "bg-blue-100 text-blue-800"
+      case "SHIPPED": return "bg-cyan-100 text-cyan-800"
+      case "PENDING": return "bg-yellow-100 text-yellow-800"
+      case "CANCELLED": return "bg-red-100 text-red-800"
+      case "DELIVERED": return "bg-green-200 text-green-900"
+      default: return "bg-gray-100 text-gray-800"
+    }
+  }
+  const getPaymentStatusColor = (status: string): string => {
+    switch (status?.toUpperCase()) {
+      case "PAID": return "bg-green-100 text-green-800"
+      case "PENDING": return "bg-yellow-100 text-yellow-800"
+      case "FAILED": return "bg-red-100 text-red-800"
+      case "REFUNDED": return "bg-purple-100 text-purple-800"
+      default: return "bg-gray-100 text-gray-800"
     }
   }
 
@@ -202,14 +311,14 @@ export default function PedidoDetallePage({ params }) {
         </Button>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Pedido {order.id}</h1>
-            <p className="text-gray-500">Realizado el {formatDate(order.date)}</p>
+            <h1 className="text-2xl font-bold">Pedido {order.orderNumber}</h1>
+            <p className="text-gray-500">Realizado el {formatDate(order.createdAt)}</p>
           </div>
           <div className="flex gap-2">
             <span
               className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-medium ${getStatusColor(order.status)}`}
             >
-              {order.statusText}
+              {translateOrderStatus(order.status)}
             </span>
           </div>
         </div>
@@ -227,18 +336,24 @@ export default function PedidoDetallePage({ params }) {
                   <div key={item.id} className="flex items-start space-x-4">
                     <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border">
                       <img
-                        src={item.image || "/placeholder.svg"}
-                        alt={item.name}
+                        src={item.product.images && item.product.images.length > 0 ? item.product.images[0].imageUrl : "/placeholder.svg"}
+                        alt={item.product.name}
                         className="h-full w-full object-contain"
                       />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-base font-medium">{item.name}</h3>
+                      <h3 className="text-base font-medium">{item.product.name}</h3>
                       <p className="mt-1 text-sm text-gray-500">Cantidad: {item.quantity}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-base font-medium">{item.price.toFixed(2)} €</p>
-                      <p className="mt-1 text-sm text-gray-500">Total: {(item.price * item.quantity).toFixed(2)} €</p>
+                      <p className="text-base font-medium">
+                        {(item.price).toLocaleString("es-MX", { style: "currency", currency: "USD" }).replace("USD", "$")}
+                        {exchangeRate && !rateLoading && (
+                          <span className="block text-xs text-gray-500">
+                            ≈ {(item.price * exchangeRate).toLocaleString("es-VE", { style: "currency", currency: "VES" })}
+                          </span>
+                        )}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -249,20 +364,65 @@ export default function PedidoDetallePage({ params }) {
               <div className="space-y-1.5">
                 <div className="flex justify-between">
                   <span className="text-sm">Subtotal</span>
-                  <span className="text-sm font-medium">{order.subtotal.toFixed(2)} €</span>
+                  <span className="text-sm font-medium text-right">
+                    {subtotal.toLocaleString("es-MX", { style: "currency", currency: "USD" }).replace("USD", "$")}
+                    {exchangeRate && !rateLoading && (
+                      <span className="block text-xs text-gray-500 text-right">
+                        ≈ {(subtotal * exchangeRate).toLocaleString("es-VE", { style: "currency", currency: "VES" })}
+                      </span>
+                    )}
+                  </span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="flex items-center">Descuento</span>
+                    <span className="text-right">
+                      -{discountAmount.toLocaleString("es-MX", { style: "currency", currency: "USD" }).replace("USD", "$")}
+                      {exchangeRate && !rateLoading && (
+                        <span className="block text-xs text-right">-{(discountAmount * exchangeRate).toLocaleString("es-VE", { style: "currency", currency: "VES" })}</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-sm">Impuestos (16%)</span>
+                  <span className="text-sm font-medium text-right">
+                    {tax.toLocaleString("es-MX", { style: "currency", currency: "USD" }).replace("USD", "$")}
+                    {exchangeRate && !rateLoading && (
+                      <span className="block text-xs text-gray-500 text-right">
+                        ≈ {(tax * exchangeRate).toLocaleString("es-VE", { style: "currency", currency: "VES" })}
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Envío</span>
-                  <span className="text-sm font-medium">{order.shipping.toFixed(2)} €</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Impuestos</span>
-                  <span className="text-sm font-medium">{order.tax.toFixed(2)} €</span>
+                  <span className="text-sm font-medium text-right">
+                    {shipping === 0 ? (
+                      <span className="text-green-600">Gratis</span>
+                    ) : (
+                      <>
+                        {shipping.toLocaleString("es-MX", { style: "currency", currency: "USD" }).replace("USD", "$")}
+                        {exchangeRate && !rateLoading && (
+                          <span className="block text-xs text-gray-500 text-right">
+                            ≈ {(shipping * exchangeRate).toLocaleString("es-VE", { style: "currency", currency: "VES" })}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </span>
                 </div>
                 <Separator className="my-2" />
-                <div className="flex justify-between">
-                  <span className="font-medium">Total</span>
-                  <span className="font-bold">{order.total.toFixed(2)} €</span>
+                <div className="flex justify-between font-bold">
+                  <span>Total</span>
+                  <span className="font-bold text-right">
+                    {total.toLocaleString("es-MX", { style: "currency", currency: "USD" }).replace("USD", "$")}
+                    {exchangeRate && !rateLoading && (
+                      <span className="block text-xs text-gray-500 text-right">
+                        ≈ {(total * exchangeRate).toLocaleString("es-VE", { style: "currency", currency: "VES" })}
+                      </span>
+                    )}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -274,30 +434,42 @@ export default function PedidoDetallePage({ params }) {
             </CardHeader>
             <CardContent>
               <div className="relative">
-                {order.statusHistory.map((status, index) => (
-                  <div key={index} className="mb-8 flex last:mb-0">
-                    <div className="flex flex-col items-center mr-4">
-                      <div
-                        className={`rounded-full h-8 w-8 flex items-center justify-center ${index === order.statusHistory.length - 1
-                          ? "bg-[var(--primary-color)] text-white"
-                          : "bg-gray-200"
-                          }`}
-                      >
-                        {index + 1}
+                {(order.histories && Array.isArray(order.histories) && order.histories.length > 0) ? (
+                  order.histories.map((history, index) => (
+                    <div key={history.id} className="mb-8 flex last:mb-0">
+                      <div className="flex flex-col items-center mr-4">
+                        <div
+                          className={`rounded-full h-8 w-8 flex items-center justify-center ${index === order.histories.length - 1
+                            ? "bg-[var(--primary-color)] text-white"
+                            : "bg-gray-200"
+                            }`}
+                        >
+                          {index + 1}
+                        </div>
+                        {index < order.histories.length - 1 && (
+                          <div className="flex-1 w-0.5 bg-gray-200" style={{ minHeight: 32 }}></div>
+                        )}
                       </div>
-                      {index < order.statusHistory.length - 1 && <div className="h-full w-0.5 bg-gray-200"></div>}
-                    </div>
-                    <div className="pb-8">
-                      <div className="flex items-center">
-                        <Badge variant="outline" className={getStatusColor(status.status)}>
-                          {status.statusText}
-                        </Badge>
-                        <span className="ml-2 text-sm text-gray-500">{formatDateTime(status.date)}</span>
+                      <div className="pb-8 flex-1">
+                        <div className="flex items-center gap-2">
+                          {history.status && (
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(history.status)}`}>
+                              {translateOrderStatus(history.status)}
+                            </span>
+                          )}
+                          {history.paymentStatus && (
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPaymentStatusColor(history.paymentStatus)}`}>
+                              {translatePaymentStatus(history.paymentStatus)}
+                            </span>
+                          )}
+                          <span className="ml-2 text-sm text-gray-500">{formatDateTime(history.changedAt)}</span>
+                        </div>
                       </div>
-                      <p className="mt-1 text-gray-600">{status.description}</p>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-gray-500 text-sm">No hay historial de cambios para este pedido.</div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -312,10 +484,10 @@ export default function PedidoDetallePage({ params }) {
               <div className="flex items-start">
                 <MapPin className="h-5 w-5 text-gray-500 mr-2 mt-0.5" />
                 <div>
-                  <p className="font-medium">{order.shippingAddress.name}</p>
-                  <p className="text-sm text-gray-500">{order.shippingAddress.address}</p>
+                  <p className="font-medium">{order.shippingAddress?.name}</p>
+                  <p className="text-sm text-gray-500">{order.shippingAddress ? order.shippingAddress.address : "Dirección no disponible"}</p>
                   <p className="text-sm text-gray-500">
-                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}
+                    {order.shippingAddress?.city}, {order.shippingAddress?.zip}
                   </p>
                 </div>
               </div>
@@ -338,9 +510,9 @@ export default function PedidoDetallePage({ params }) {
                 <span>{order.paymentMethod}</span>
               </div>
               <div className="mt-2 flex items-center">
-                <Badge variant={order.paymentStatus === "paid" ? "success" : "outline"}>
-                  {order.paymentStatusText}
-                </Badge>
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
+                  {translatePaymentStatus(order.paymentStatus)}
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -352,18 +524,122 @@ export default function PedidoDetallePage({ params }) {
             <CardContent className="space-y-4">
               <Button variant="outline" className="w-full" asChild>
                 <a
-                  href={`https://wa.me/584121234567?text=Hola,%20necesito%20ayuda%20con%20mi%20pedido%20${order.id}%20y%20mi%20voucher%20de%20compra`}
+                  href={`https://wa.me/584121234567?text=Hola,%20necesito%20ayuda%20con%20mi%20pedido%20${order.id}%20y%20mi%20nota%20de%20compra`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   Contactar por WhatsApp
                 </a>
               </Button>
-              <Button variant="outline" className="w-full" asChild>
-                <Link href={`/mi-cuenta/pedidos/${order.id}/voucher`} target="_blank" rel="noopener noreferrer">
-                  Ver voucher de compra
-                </Link>
+              <Button variant="outline" className="w-full" onClick={() => setIsNotaDialogOpen(true)}>
+                Ver nota de compra
               </Button>
+              <Dialog open={isNotaDialogOpen} onOpenChange={setIsNotaDialogOpen}>
+                <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center justify-between">
+                      <span>NOTA DE COMPRA {order.orderNumber}</span>
+                      <Button variant="outline" size="sm" onClick={() => window.print()}>
+                        <Printer className="h-4 w-4 mr-2" />
+                        Imprimir Nota
+                      </Button>
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div ref={notaRef} className="p-8 bg-gray-50 rounded-lg shadow-md">
+                    <div className="flex justify-between items-center mb-8 border-b pb-4">
+                      <div className="flex items-center">
+                        <LogoExtendido className="h-12 w-auto" />
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg text-gray-700">{order.orderNumber}</p>
+                        <p className="text-sm text-gray-500">Fecha: {formatDate(order.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                      <div className="space-y-2">
+                        <p className="font-bold text-sm text-gray-600">DATOS DE LA EMPRESA</p>
+                        <p className="text-sm text-gray-500">RIF: J-123456789</p>
+                        <p className="text-sm text-gray-500">Av. Principal, Maturín, Venezuela</p>
+                        <p className="text-sm text-gray-500">Teléfono: +58 412 123 4567</p>
+                        <p className="text-sm text-gray-500">Email: info@ferremadrid.com</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="font-bold text-sm text-gray-600">CLIENTE</p>
+                        {order.isInStore ? (
+                          <>
+                            <p className="text-sm text-gray-500"><span className="font-medium">Nombre:</span> {order.nombre || "Nombre no disponible"}</p>
+                            <p className="text-sm text-gray-500"><span className="font-medium">Teléfono:</span> {order.phone || "Teléfono no disponible"}</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-500"><span className="font-medium">Nombre:</span> {order.user?.name || "Nombre no disponible"}</p>
+                            {order.user?.email && <p className="text-sm text-gray-500"><span className="font-medium">Email:</span> {order.user?.email}</p>}
+                            <p className="text-sm text-gray-500"><span className="font-medium">Teléfono:</span> {order.user?.phone || "Teléfono no disponible"}</p>
+                            {order.shippingAddress && <p className="text-sm text-gray-500"><span className="font-medium">Dirección:</span> {order.shippingAddress.address || "Dirección no disponible"}</p>}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="border rounded-md overflow-hidden mb-8">
+                      <table className="w-full border-collapse">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="text-left py-3 px-4 border-b text-sm text-gray-600">Producto</th>
+                            <th className="text-right py-3 px-4 border-b text-sm text-gray-600">Cantidad</th>
+                            <th className="text-right py-3 px-4 border-b text-sm text-gray-600">Precio Unit.</th>
+                            <th className="text-right py-3 px-4 border-b text-sm text-gray-600">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {order.items.map((item) => (
+                            <tr key={`nota-item-${item.id}`} className="bg-white">
+                              <td className="py-2 px-4 border-b">{item.product?.name || item.product.name || "Nombre no disponible"}</td>
+                              <td className="text-right py-2 px-4 border-b">{item.quantity}</td>
+                              <td className="text-right py-2 px-4 border-b">{formatCurrency(item.price)}</td>
+                              <td className="text-right py-2 px-4 border-b">{formatCurrency(item.price * item.quantity)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex justify-end mb-8">
+                      <div className="w-64">
+                        <div className="flex justify-between py-2">
+                          <span className="font-medium text-gray-600">Subtotal:</span>
+                          <span className="text-gray-700">{formatCurrency(subtotal)}</span>
+                        </div>
+                        <div className="flex justify-between py-2">
+                          <span className="font-medium text-gray-600">IVA (16%):</span>
+                          <span className="text-gray-700">{formatCurrency(tax)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-t mt-2 pt-2">
+                          <span className="font-bold text-gray-800">TOTAL:</span>
+                          <span className="font-bold text-gray-800">{formatCurrency(total)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                      <div>
+                        <h3 className="font-bold mb-2 text-sm text-gray-600">FORMA DE PAGO</h3>
+                        <p className="text-sm text-gray-500">{translatePaymentMethod(order.paymentMethod)}</p>
+                        {order.paymentReference && (
+                          <p className="text-sm text-gray-500">Referencia: {order.paymentReference}</p>
+                        )}
+                      </div>
+                      {order.notes && (
+                        <div>
+                          <h3 className="font-bold mb-2 text-sm text-gray-600">NOTAS</h3>
+                          <p className="text-sm text-gray-500">{order.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-center text-sm mt-12 pt-4 border-t">
+                      <p className="mb-2 text-gray-600">Gracias por su compra</p>
+                      <p className="text-gray-500">Este documento es una nota válida</p>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </div>
