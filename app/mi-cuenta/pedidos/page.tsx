@@ -15,7 +15,7 @@ import { es } from "date-fns/locale"
 import { useExchangeRate } from "@/hooks/use-exchange-rate"
 
 export default function PedidosPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
@@ -60,10 +60,10 @@ export default function PedidosPage() {
 
   // Si no hay usuario, redirigir al login
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       router.push("/login?redirect=/mi-cuenta/pedidos")
     }
-  }, [user, router])
+  }, [user, authLoading, router])
 
   // Fetch pedidos del usuario autenticado
   useEffect(() => {
@@ -157,6 +157,7 @@ export default function PedidosPage() {
     }
   }
 
+  if (authLoading) return null
   if (!user) return null
 
   return (
