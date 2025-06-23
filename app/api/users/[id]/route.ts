@@ -25,8 +25,7 @@ export async function GET(
                         name: true,
                         address: true,
                         city: true,
-                        zip: true,
-                        isDefault: true
+                        zip: true
                     }
                 }
             }

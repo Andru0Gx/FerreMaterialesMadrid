@@ -158,41 +158,24 @@ export async function DELETE(
             )
         }
 
-        // Usar una transacción para manejar el borrado
-        await prisma.$transaction(async (tx) => {
-            // Obtener la dirección a eliminar
-            const address = await tx.address.findFirst({
-                where: {
-                    id: addressId,
-                    userId
-                }
-            })
-
-            if (!address) {
-                throw new Error('Dirección no encontrada')
+        // Verificar que la dirección pertenece al usuario
+        const address = await prisma.address.findFirst({
+            where: {
+                id: addressId,
+                userId
             }
+        })
 
-            // Si la dirección a eliminar es la predeterminada, hacer otra dirección predeterminada
-            if (address.isDefault) {
-                const otherAddress = await tx.address.findFirst({
-                    where: {
-                        userId,
-                        id: { not: addressId }
-                    }
-                })
+        if (!address) {
+            return NextResponse.json(
+                { status: 'error', message: 'Dirección no encontrada' },
+                { status: 404 }
+            )
+        }
 
-                if (otherAddress) {
-                    await tx.address.update({
-                        where: { id: otherAddress.id },
-                        data: { isDefault: true }
-                    })
-                }
-            }
-
-            // Eliminar la dirección
-            await tx.address.delete({
-                where: { id: addressId }
-            })
+        // Eliminar la dirección
+        await prisma.address.delete({
+            where: { id: addressId }
         })
 
         return NextResponse.json({ status: 'success', message: 'Dirección eliminada correctamente' })
@@ -207,4 +190,4 @@ export async function DELETE(
             { status: 500 }
         )
     }
-} 
+}
