@@ -11,10 +11,25 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: "No autorizado" }, { status: 401 })
         }
 
+        // Primero, verificar si es admin
+        const admin = await prisma.admin.findUnique({
+            where: { id: userId },
+        })
+        if (admin) {
+            // Si es admin, no devolver carrito ni aplicar descuento
+            return NextResponse.json({ cart: [], discount: null })
+        }
+
+        // Si no es admin, buscar en usuarios
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { cart: true }
+            select: { cart: true, role: true }
         })
+
+        // Si el usuario es admin, no devolver carrito ni aplicar descuento
+        if (user?.role === "ADMIN") {
+            return NextResponse.json({ cart: [], discount: null })
+        }
 
         // Obtener el código de descuento de los query params
         const url = new URL(request.url)
@@ -116,7 +131,16 @@ export async function PUT(request: Request) {
             return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
-        // Verificar si el usuario existe
+        // Primero, verificar si es admin
+        const admin = await prisma.admin.findUnique({
+            where: { id: userId },
+        })
+        if (admin) {
+            // No guardar carrito para admin
+            return NextResponse.json({ success: true });
+        }
+
+        // Si no es admin, buscar en usuarios
         const userExists = await prisma.user.findUnique({
             where: { id: userId },
         });
