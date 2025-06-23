@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from "@/lib/prisma"
 import jwt from "jsonwebtoken"
-import { AccountType, OrderStatus, PaymentStatus } from "@prisma/client"
+import { AccountType, OrderStatus, PaymentStatus, DiscountType } from "@prisma/client"
 import { generateOrderNumber } from "@/lib/utils"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
@@ -100,6 +100,23 @@ export async function POST(request: Request) {
             foundUser = await prisma.user.findUnique({ where: { id: decodedUser.id } });
         }
         const reqData = await request.json();
+
+        // --- Lógica para shippingAmount según promo ENVIO_GRATIS ---
+        // Buscar promo de tipo ENVIO_GRATIS
+        const envioGratisPromo = await prisma.promotion.findFirst({
+            where: { discountType: DiscountType.ENVIO_GRATIS },
+            orderBy: { active: 'desc' } // Prioriza la activa si hay varias
+        });
+        let shippingAmount = reqData.shippingAmount || 0;
+        if (envioGratisPromo) {
+            if (envioGratisPromo.active) {
+                shippingAmount = 0;
+            } else if (envioGratisPromo.discountValue !== null && envioGratisPromo.discountValue !== undefined) {
+                shippingAmount = envioGratisPromo.discountValue;
+            }
+        }
+        // --- Fin lógica shippingAmount ---
+
         // Si no hay usuario, es venta en tienda física
         if (!foundUser) {
             // Validar datos mínimos
@@ -113,7 +130,7 @@ export async function POST(request: Request) {
             const discountAmount = reqData.discount?.discountAmount || 0;
             const subtotalAfterDiscount = subtotal - discountAmount;
             const taxAmount = subtotalAfterDiscount * 0.16;
-            const shippingAmount = reqData.shippingAmount || 0; // Si tienes lógica de envío física, cámbiala aquí
+            // shippingAmount ya calculado arriba
             const total = subtotalAfterDiscount + taxAmount + shippingAmount;
             // Crear la orden
             const itemsToCreate = reqData.items.map((item: any) => {
@@ -200,7 +217,7 @@ export async function POST(request: Request) {
         const discountAmount = data.discount?.discountAmount || 0;
         const subtotalAfterDiscount = subtotal - discountAmount;
         const taxAmount = subtotalAfterDiscount * 0.16;
-        const shippingAmount = data.shippingAmount || 0;
+        // shippingAmount ya calculado arriba
         const total = subtotalAfterDiscount + taxAmount + shippingAmount;
 
         // Preparar los datos de la orden

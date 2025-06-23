@@ -431,14 +431,14 @@ export default function CheckoutPage() {
                           <Input
                             id="receipt"
                             type="file"
-                            accept="image/*,.pdf"
+                            accept="image/*"
                             onChange={handleFileUpload}
                             required
                             className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer h-fit"
                           />
                           <Upload className="w-5 h-5 text-gray-400" />
                         </div>
-                        <p className="text-xs text-gray-500">Sube una imagen o PDF del comprobante de pago</p>
+                        <p className="text-xs text-gray-500">Sube una imagen del comprobante de pago</p>
                         {paymentData.receipt && (
                           <p className="text-sm text-green-600">✓ Archivo seleccionado: {paymentData.receipt.name}</p>
                         )}
