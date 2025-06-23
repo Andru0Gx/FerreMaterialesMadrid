@@ -20,6 +20,7 @@ export async function GET(request: Request) {
                 orders: {
                     select: {
                         id: true,
+                        orderNumber: true, // <-- incluir orderNumber
                         createdAt: true,
                         status: true,
                         total: true,
@@ -34,6 +35,9 @@ export async function GET(request: Request) {
                                 }
                             }
                         }
+                    },
+                    orderBy: {
+                        createdAt: 'desc'
                     }
                 }
             }
@@ -49,6 +53,7 @@ export async function GET(request: Request) {
             status: user.isActive ? 'active' : 'inactive',
             orders: user.orders.map(order => ({
                 id: order.id,
+                orderNumber: order.orderNumber, // <-- incluir orderNumber en la transformación
                 date: order.createdAt.toISOString(),
                 total: order.total,
                 status: order.status.toLowerCase(),
@@ -120,4 +125,4 @@ export async function PUT(request: Request) {
             { status: 500 }
         )
     }
-} 
+}

@@ -52,6 +52,7 @@ interface User {
   status: string
   orders: {
     id: string
+    orderNumber: string // <-- agregar orderNumber
     date: string
     total: number
     status: string
@@ -442,7 +443,7 @@ export default function UsersPage() {
                             <div key={order.id} className="border rounded-lg p-4">
                               <div className="flex justify-between items-center mb-4">
                                 <div>
-                                  <h4 className="font-semibold">Pedido #{order.id}</h4>
+                                  <h4 className="font-semibold">Pedido {order.orderNumber}</h4>
                                   <p className="text-sm text-muted-foreground">
                                     {new Date(order.date).toLocaleDateString()}
                                   </p>
