@@ -96,8 +96,7 @@ export async function POST(request: Request) {
                         name: "Principal",
                         address: address,
                         city: city,
-                        zip: zip,
-                        isDefault: true
+                        zip: zip
                     } as unknown as Prisma.AddressCreateInput
                 })
             }
