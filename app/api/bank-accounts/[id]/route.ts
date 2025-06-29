@@ -20,7 +20,7 @@ export async function PUT(
         }
 
         // Validar que si es pago móvil tenga teléfono
-        if (data.type === "pago-movil" && !data.phone) {
+        if (data.type === "PAGO_MOVIL" && !data.phone) {
             return NextResponse.json(
                 { error: "El teléfono es requerido para Pago Móvil" },
                 { status: 400 }
@@ -28,7 +28,7 @@ export async function PUT(
         }
 
         // Validar que si es transferencia tenga número de cuenta
-        if (data.type === "transferencia" && !data.accountNumber) {
+        if (data.type === "TRANSFERENCIA" && !data.accountNumber) {
             return NextResponse.json(
                 { error: "El número de cuenta es requerido para Transferencia" },
                 { status: 400 }
@@ -38,7 +38,7 @@ export async function PUT(
         const account = await prisma.bankAccount.update({
             where: { id },
             data: {
-                type: data.type === "pago-movil" ? "PAGO_MOVIL" : "TRANSFERENCIA",
+                type: data.type === "PAGO_MOVIL" ? "PAGO_MOVIL" : "TRANSFERENCIA",
                 bank: data.bank,
                 accountNumber: data.accountNumber,
                 phone: data.phone,
