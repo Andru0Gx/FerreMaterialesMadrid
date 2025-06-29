@@ -32,7 +32,7 @@ export function StatsCards({ data }: StatsCardsProps) {
           <div className="text-2xl font-bold">${data.totalSales.toLocaleString()}</div>
           <p className={cn("text-xs flex items-center gap-1", salesPercent >= 0 ? "text-emerald-500" : "text-red-500")}>
             <span className="text-sm">{salesPercent >= 0 ? "↑" : "↓"}</span>
-            {Math.abs(salesPercent).toFixed(1)}% respecto al mes anterior
+            {Math.abs(salesPercent).toFixed(1)}% respecto al periodo anterior
           </p>
         </CardContent>
       </Card>
@@ -45,7 +45,7 @@ export function StatsCards({ data }: StatsCardsProps) {
           <div className="text-2xl font-bold">{data.totalOrders}</div>
           <p className={cn("text-xs flex items-center gap-1", ordersPercent >= 0 ? "text-emerald-500" : "text-red-500")}>
             <span className="text-sm">{ordersPercent >= 0 ? "↑" : "↓"}</span>
-            {Math.abs(ordersPercent).toFixed(1)}% respecto al mes anterior
+            {Math.abs(ordersPercent).toFixed(1)}% respecto al periodo anterior
           </p>
         </CardContent>
       </Card>
@@ -58,7 +58,7 @@ export function StatsCards({ data }: StatsCardsProps) {
           <div className="text-2xl font-bold">{data.pendingOrders ?? 0}</div>
           <p className={cn("text-xs flex items-center gap-1", pendingPercent >= 0 ? "text-emerald-500" : "text-red-500")}>
             <span className="text-sm">{pendingPercent >= 0 ? "↑" : "↓"}</span>
-            {Math.abs(pendingPercent).toFixed(1)}% respecto al mes anterior
+            {Math.abs(pendingPercent).toFixed(1)}% respecto al periodo anterior
           </p>
         </CardContent>
       </Card>
