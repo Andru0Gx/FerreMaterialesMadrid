@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useAuth } from "@/hooks/use-auth"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Plus, Pencil, Trash2, ArrowUpDown, Search } from "lucide-react"
-import { BankAccountForm } from "@/components/admin/bank-account-form"
-import { useToast } from "@/components/ui/use-toast"
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Plus, Pencil, Trash2, ArrowUpDown, Search } from "lucide-react";
+import { BankAccountForm } from "@/components/admin/bank-account-form";
+import { useToast } from "@/components/ui/use-toast";
 import {
     Dialog,
     DialogContent,
@@ -14,8 +14,8 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
     Table,
     TableBody,
@@ -23,76 +23,78 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 
 interface BankAccount {
-    id: string
-    type: "PAGO_MOVIL" | "TRANSFERENCIA"
-    bank: string
-    accountNumber?: string
-    phone?: string
-    document: string
-    accountHolder: string
+    id: string;
+    type: "PAGO_MOVIL" | "TRANSFERENCIA";
+    bank: string;
+    accountNumber?: string;
+    phone?: string;
+    document: string;
+    accountHolder: string;
 }
 
 export default function BankAccountsPage() {
-    const { user, isSuperAdmin } = useAuth()
-    const router = useRouter()
-    const { toast } = useToast()
-    const [accounts, setAccounts] = useState<BankAccount[]>([])
-    const [isFormOpen, setIsFormOpen] = useState(false)
-    const [editingAccount, setEditingAccount] = useState<BankAccount | undefined>(undefined)
-    const [searchTerm, setSearchTerm] = useState("")
-    const [sortColumn, setSortColumn] = useState<string | null>(null)
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+    const { user, isSuperAdmin } = useAuth();
+    const router = useRouter();
+    const { toast } = useToast();
+    const [accounts, setAccounts] = useState<BankAccount[]>([]);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingAccount, setEditingAccount] = useState<
+        BankAccount | undefined
+    >(undefined);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [sortColumn, setSortColumn] = useState<string | null>(null);
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
     useEffect(() => {
         if (!user) {
-            router.push("/login")
-            return
+            router.push("/login");
+            return;
         }
 
         if (!isSuperAdmin) {
-            router.push("/admin")
-            return
+            router.push("/admin");
+            return;
         }
 
-        fetchAccounts()
-    }, [user, isSuperAdmin, router])
+        fetchAccounts();
+    }, [user, isSuperAdmin, router]);
 
     const fetchAccounts = async () => {
         try {
-            const token = localStorage.getItem("token")
+            const token = localStorage.getItem("token");
             const response = await fetch("/api/bank-accounts", {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
-            })
+            });
 
             if (!response.ok) {
-                throw new Error("Error al obtener las cuentas bancarias")
+                throw new Error("Error al obtener las cuentas bancarias");
             }
 
-            const data = await response.json()
-            setAccounts(data)
+            const data = await response.json();
+            setAccounts(data);
         } catch (error) {
-            console.error("Error:", error)
+            console.error("Error:", error);
             toast({
                 variant: "destructive",
                 title: "Error",
                 description: "Error al obtener las cuentas bancarias",
-            })
+            });
         }
-    }
+    };
 
     const handleSubmit = async (data: any) => {
         try {
-            const method = editingAccount ? "PUT" : "POST"
+            const method = editingAccount ? "PUT" : "POST";
             const url = editingAccount
                 ? `/api/bank-accounts/${editingAccount.id}`
-                : "/api/bank-accounts"
+                : "/api/bank-accounts";
 
-            const token = localStorage.getItem("token")
+            const token = localStorage.getItem("token");
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -100,125 +102,130 @@ export default function BankAccountsPage() {
                     Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify(data),
-            })
+            });
 
             if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.error || (editingAccount
-                    ? "Error al actualizar la cuenta bancaria"
-                    : "Error al crear la cuenta bancaria"
-                ))
+                const errorData = await response.json();
+                throw new Error(
+                    errorData.error ||
+                        (editingAccount
+                            ? "Error al actualizar la cuenta bancaria"
+                            : "Error al crear la cuenta bancaria")
+                );
             }
 
-            await fetchAccounts()
-            setIsFormOpen(false)
-            setEditingAccount(undefined)
+            await fetchAccounts();
+            setIsFormOpen(false);
+            setEditingAccount(undefined);
             toast({
                 title: "Éxito",
                 description: editingAccount
                     ? "Cuenta bancaria actualizada correctamente"
                     : "Cuenta bancaria creada correctamente",
-            })
+            });
         } catch (error) {
-            console.error("Error:", error)
+            console.error("Error:", error);
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: error instanceof Error ? error.message : "Error desconocido",
-            })
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : "Error desconocido",
+            });
         }
-    }
+    };
 
     const handleEdit = (account: BankAccount) => {
-        setEditingAccount(account)
-        setIsFormOpen(true)
-    }
+        setEditingAccount(account);
+        setIsFormOpen(true);
+    };
 
     const handleDelete = async (id: string) => {
         try {
-            const token = localStorage.getItem("token")
+            const token = localStorage.getItem("token");
             const response = await fetch(`/api/bank-accounts/${id}`, {
                 method: "DELETE",
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
-            })
+            });
 
             if (!response.ok) {
-                throw new Error("Error al eliminar la cuenta bancaria")
+                throw new Error("Error al eliminar la cuenta bancaria");
             }
 
-            await fetchAccounts()
+            await fetchAccounts();
             toast({
                 title: "Éxito",
                 description: "Cuenta bancaria eliminada correctamente",
-            })
+            });
         } catch (error) {
-            console.error("Error:", error)
+            console.error("Error:", error);
             toast({
                 variant: "destructive",
                 title: "Error",
                 description: "Error al eliminar la cuenta bancaria",
-            })
+            });
         }
-    }
+    };
 
     const handleSort = (column: string) => {
         if (sortColumn === column) {
-            setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+            setSortDirection(sortDirection === "asc" ? "desc" : "asc");
         } else {
-            setSortColumn(column)
-            setSortDirection("asc")
+            setSortColumn(column);
+            setSortDirection("asc");
         }
-    }
+    };
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchTerm(e.target.value)
-    }
+        setSearchTerm(e.target.value);
+    };
 
     const filteredAndSortedAccounts = accounts
-        .filter(account => {
-            const searchLower = searchTerm.toLowerCase()
+        .filter((account) => {
+            const searchLower = searchTerm.toLowerCase();
             return (
                 account.accountHolder.toLowerCase().includes(searchLower) ||
                 account.document.toLowerCase().includes(searchLower) ||
                 account.bank.toLowerCase().includes(searchLower)
-            )
+            );
         })
         .sort((a, b) => {
-            if (!sortColumn) return 0
+            if (!sortColumn) return 0;
 
-            let valueA, valueB
+            let valueA, valueB;
             switch (sortColumn) {
                 case "type":
-                    valueA = a.type
-                    valueB = b.type
-                    break
+                    valueA = a.type;
+                    valueB = b.type;
+                    break;
                 case "bank":
-                    valueA = a.bank
-                    valueB = b.bank
-                    break
+                    valueA = a.bank;
+                    valueB = b.bank;
+                    break;
                 case "accountHolder":
-                    valueA = a.accountHolder
-                    valueB = b.accountHolder
-                    break
+                    valueA = a.accountHolder;
+                    valueB = b.accountHolder;
+                    break;
                 case "document":
-                    valueA = a.document
-                    valueB = b.document
-                    break
+                    valueA = a.document;
+                    valueB = b.document;
+                    break;
                 default:
-                    return 0
+                    return 0;
             }
 
-            if (valueA < valueB) return sortDirection === "asc" ? -1 : 1
-            if (valueA > valueB) return sortDirection === "asc" ? 1 : -1
-            return 0
-        })
+            if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
+            if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
+            return 0;
+        });
 
     const handleCancel = () => {
-        setIsFormOpen(false)
-        setEditingAccount(undefined)
-    }
+        setIsFormOpen(false);
+        setEditingAccount(undefined);
+    };
 
     return (
         <div className="p-6 space-y-6">
@@ -234,10 +241,14 @@ export default function BankAccountsPage() {
                     <DialogContent className="sm:max-w-[600px]">
                         <DialogHeader>
                             <DialogTitle>
-                                {editingAccount ? "Editar Cuenta Bancaria" : "Agregar Cuenta Bancaria"}
+                                {editingAccount
+                                    ? "Editar Cuenta Bancaria"
+                                    : "Agregar Cuenta Bancaria"}
                             </DialogTitle>
                             <DialogDescription>
-                                Complete el formulario para {editingAccount ? "actualizar" : "agregar"} una cuenta bancaria.
+                                Complete el formulario para{" "}
+                                {editingAccount ? "actualizar" : "agregar"} una
+                                cuenta bancaria.
                             </DialogDescription>
                         </DialogHeader>
                         <BankAccountForm
@@ -266,17 +277,33 @@ export default function BankAccountsPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead onClick={() => handleSort("type")} className="cursor-pointer">
-                                Tipo <ArrowUpDown className="ml-1 h-4 w-4 inline" />
+                            <TableHead
+                                onClick={() => handleSort("type")}
+                                className="cursor-pointer"
+                            >
+                                Tipo{" "}
+                                <ArrowUpDown className="ml-1 h-4 w-4 inline" />
                             </TableHead>
-                            <TableHead onClick={() => handleSort("bank")} className="cursor-pointer">
-                                Banco <ArrowUpDown className="ml-1 h-4 w-4 inline" />
+                            <TableHead
+                                onClick={() => handleSort("bank")}
+                                className="cursor-pointer"
+                            >
+                                Banco{" "}
+                                <ArrowUpDown className="ml-1 h-4 w-4 inline" />
                             </TableHead>
-                            <TableHead onClick={() => handleSort("accountHolder")} className="cursor-pointer">
-                                Titular <ArrowUpDown className="ml-1 h-4 w-4 inline" />
+                            <TableHead
+                                onClick={() => handleSort("accountHolder")}
+                                className="cursor-pointer"
+                            >
+                                Titular{" "}
+                                <ArrowUpDown className="ml-1 h-4 w-4 inline" />
                             </TableHead>
-                            <TableHead onClick={() => handleSort("document")} className="cursor-pointer">
-                                Documento <ArrowUpDown className="ml-1 h-4 w-4 inline" />
+                            <TableHead
+                                onClick={() => handleSort("document")}
+                                className="cursor-pointer"
+                            >
+                                Documento{" "}
+                                <ArrowUpDown className="ml-1 h-4 w-4 inline" />
                             </TableHead>
                             <TableHead>Detalles</TableHead>
                             <TableHead>Acciones</TableHead>
@@ -286,7 +313,9 @@ export default function BankAccountsPage() {
                         {filteredAndSortedAccounts.map((account) => (
                             <TableRow key={account.id}>
                                 <TableCell>
-                                    {account.type === "PAGO_MOVIL" ? "Pago Móvil" : "Transferencia"}
+                                    {account.type === "PAGO_MOVIL"
+                                        ? "Pago Móvil"
+                                        : "Transferencia"}
                                 </TableCell>
                                 <TableCell>{account.bank}</TableCell>
                                 <TableCell>{account.accountHolder}</TableCell>
@@ -295,7 +324,9 @@ export default function BankAccountsPage() {
                                     {account.type === "PAGO_MOVIL" ? (
                                         <span>Teléfono: {account.phone}</span>
                                     ) : (
-                                        <span>Cuenta: {account.accountNumber}</span>
+                                        <span>
+                                            Cuenta: {account.accountNumber}
+                                        </span>
                                     )}
                                 </TableCell>
                                 <TableCell>
@@ -310,7 +341,9 @@ export default function BankAccountsPage() {
                                         <Button
                                             variant="destructive"
                                             size="icon"
-                                            onClick={() => handleDelete(account.id)}
+                                            onClick={() =>
+                                                handleDelete(account.id)
+                                            }
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -322,5 +355,5 @@ export default function BankAccountsPage() {
                 </Table>
             </div>
         </div>
-    )
-} 
+    );
+}
