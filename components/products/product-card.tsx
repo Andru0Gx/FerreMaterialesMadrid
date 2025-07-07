@@ -70,7 +70,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           src={typeof product.images?.[0] === "string" ? product.images[0] : "/placeholder.svg"}
           alt={product.name}
           fill
-          className={`object-cover transition-transform duration-500 ${isHovered ? "scale-110" : "scale-100"}`}
+          className={`object-contain transition-transform duration-500 ${isHovered ? "scale-110" : "scale-100"}`}
         />
         {product.discount > 0 && (
           <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
