@@ -4,7 +4,8 @@ import jwt from "jsonwebtoken"
 import { AccountType, OrderStatus, PaymentStatus, DiscountType } from "@prisma/client"
 import { generateOrderNumber } from "@/lib/utils"
 import { sendMail } from '@/lib/email'
-import { orderConfirmationTemplate } from '@/lib/email-templates'
+import { orderPendingReceiptTemplate } from '@/lib/email-templates'
+import { COMPANY_INFO } from '@/lib/data'
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 
@@ -312,14 +313,14 @@ export async function POST(request: Request) {
 
         // Enviar correo de confirmación de pedido al usuario
         if (result?.user?.email) {
-            const orderLink = `localhost:3000/mi-cuenta/pedidos/${result.id}`;
             await sendMail({
                 to: result.user.email,
-                subject: '¡Hemos recibido tu pedido!',
-                html: orderConfirmationTemplate({
+                subject: '¡Hemos recibido tu pedido! (Pago en proceso)',
+                html: orderPendingReceiptTemplate({
                     user: result.user.name || result.user.email,
                     orderNumber: result.orderNumber,
-                    orderLink
+                    order: result,
+                    company: COMPANY_INFO,
                 })
             });
         }

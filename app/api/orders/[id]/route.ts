@@ -4,7 +4,6 @@ import { OrderStatus, PaymentStatus } from "@prisma/client"
 import jwt from "jsonwebtoken"
 import { sendMail } from '@/lib/email'
 import { orderStatusUpdateTemplate } from '@/lib/email-templates'
-import { COMPANY_INFO } from '@/lib/data'
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 
@@ -106,7 +105,7 @@ export async function PATCH(
                     PAID: 'Aprobado',
                     FAILED: 'Fallido',
                 };
-                const orderLink = `localhost:3000/mi-cuenta/pedidos/${updatedOrder.id}`;
+                // Solo notificación de cambio de estado (no nota de compra)
                 await sendMail({
                     to: userEmail,
                     subject: `Actualización de tu pedido ${updatedOrder.orderNumber}`,
@@ -115,7 +114,7 @@ export async function PATCH(
                         orderNumber: updatedOrder.orderNumber,
                         newStatus: updateData.status ? statusMap[updateData.status] : undefined,
                         newPaymentStatus: updateData.paymentStatus ? paymentStatusMap[updateData.paymentStatus] : undefined,
-                        orderLink,
+                        orderLink: `localhost:3000/mi-cuenta/pedidos/${updatedOrder.id}`,
                     }),
                 });
             }
