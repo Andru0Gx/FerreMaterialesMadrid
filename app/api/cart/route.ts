@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import type { CartItem } from "@/lib/types"
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
     try {
         // Obtener el userId del header de autorización

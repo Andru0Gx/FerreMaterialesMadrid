@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -23,7 +23,7 @@ interface ProductsFiltersProps {
   currentFilters?: Filters
 }
 
-export default function ProductsFilters({
+function ProductsFiltersContent({
   onFiltersChange,
   productsCount,
   maxPrice = 1000,
@@ -236,5 +236,20 @@ export default function ProductsFilters({
         Limpiar filtros
       </Button>
     </div>
+  )
+}
+
+export default function ProductsFilters(props: ProductsFiltersProps) {
+  return (
+    <Suspense fallback={<div className="animate-pulse space-y-4">
+      <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+      <div className="space-y-2">
+        <div className="h-4 bg-gray-200 rounded"></div>
+        <div className="h-4 bg-gray-200 rounded"></div>
+        <div className="h-4 bg-gray-200 rounded"></div>
+      </div>
+    </div>}>
+      <ProductsFiltersContent {...props} />
+    </Suspense>
   )
 }

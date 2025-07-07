@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import ProductsGrid from "@/components/products/products-grid"
 import ProductsFilters, { type Filters } from "@/components/products/products-filters"
@@ -9,7 +9,7 @@ import { ProductsSearch } from "@/components/products/products-search"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { Product } from "@/lib/types"
 
-export default function ProductsPage() {
+function ProductsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
@@ -232,5 +232,13 @@ function ProductsGridSkeleton() {
           </div>
         ))}
     </div>
+  )
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<ProductsGridSkeleton />}>
+      <ProductsContent />
+    </Suspense>
   )
 }
