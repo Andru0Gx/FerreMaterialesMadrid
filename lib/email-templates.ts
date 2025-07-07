@@ -31,3 +31,20 @@ export function orderConfirmationTemplate({ user, orderNumber, orderLink }: { us
     </div>
   `;
 }
+
+// Notificación de cambio de estado de pedido o pago
+export function orderStatusUpdateTemplate({ user, orderNumber, newStatus, newPaymentStatus, orderLink }: { user: string; orderNumber: string; newStatus?: string; newPaymentStatus?: string; orderLink: string }) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+      <h1 style="color: #1a202c;">Actualización de tu pedido</h1>
+      <p>Hola <b>${user}</b>,</p>
+      <p>Te informamos que tu pedido <b style="color: #e18a2d;">${orderNumber}</b> ha cambiado:</p>
+      ${newStatus ? `<p>Nuevo estado del pedido: <b>${newStatus}</b></p>` : ''}
+      ${newPaymentStatus ? `<p>Nuevo estado de pago: <b>${newPaymentStatus}</b></p>` : ''}
+      <p>Puedes ver los detalles y el estado actualizado de tu pedido en el siguiente enlace:</p>
+      <a href="${orderLink}" style="display: inline-block; margin: 16px 0; padding: 10px 20px; background: #e18a2d; color: #fff; border-radius: 6px; text-decoration: none;">Ver mi pedido</a>
+      <hr style="margin: 32px 0; border: none; border-top: 1px solid #e2e8f0;" />
+      <p style="font-size: 0.9rem; color: #6b7280;">Gracias por confiar en FerreMateriales Madrid.</p>
+    </div>
+  `;
+}

@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import prisma from "@/lib/prisma"
 import { OrderStatus, PaymentStatus } from "@prisma/client"
 import jwt from "jsonwebtoken"
+import { sendMail } from '@/lib/email'
+import { orderStatusUpdateTemplate } from '@/lib/email-templates'
+import { COMPANY_INFO } from '@/lib/data'
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 
@@ -85,6 +88,38 @@ export async function PATCH(
 
             await tx.orderHistory.create({ data: historyData });
 
+            // Notificar al cliente por correo si hay email disponible
+            let userEmail = updatedOrder.user?.email || updatedOrder.email;
+            let userName = updatedOrder.user?.name || updatedOrder.nombre || 'Cliente';
+            if (userEmail) {
+                // Traducir estados
+                const statusMap = {
+                    PENDING: 'Pendiente',
+                    PROCESSING: 'Procesando',
+                    SHIPPED: 'Enviado',
+                    CANCELLED: 'Cancelado',
+                    COMPLETED: 'Completado',
+                    DELIVERED: 'Entregado',
+                };
+                const paymentStatusMap = {
+                    PENDING: 'Pendiente',
+                    PAID: 'Aprobado',
+                    FAILED: 'Fallido',
+                };
+                const orderLink = `localhost:3000/mi-cuenta/pedidos/${updatedOrder.id}`;
+                await sendMail({
+                    to: userEmail,
+                    subject: `Actualización de tu pedido ${updatedOrder.orderNumber}`,
+                    html: orderStatusUpdateTemplate({
+                        user: userName,
+                        orderNumber: updatedOrder.orderNumber,
+                        newStatus: updateData.status ? statusMap[updateData.status] : undefined,
+                        newPaymentStatus: updateData.paymentStatus ? paymentStatusMap[updateData.paymentStatus] : undefined,
+                        orderLink,
+                    }),
+                });
+            }
+
             return updatedOrder;
         });
 
@@ -131,4 +166,4 @@ export async function GET(
             { status: 500 }
         )
     }
-} 
+}
