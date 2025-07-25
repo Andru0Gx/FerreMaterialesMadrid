@@ -60,6 +60,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import type { Order as OriginalOrder } from "@/lib/types";
 import useSWR from "swr";
+import { useExchangeRate } from "@/hooks/use-exchange-rate";
 
 type Order = OriginalOrder & {
     subtotal?: number;
@@ -145,6 +146,7 @@ const translatePaymentMethod = (method: string | null): string => {
 };
 
 export default function OrdersPage() {
+    const { rate, loading: rateLoading, error: rateError } = useExchangeRate();
     const router = useRouter();
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
@@ -569,12 +571,12 @@ export default function OrdersPage() {
                 selectedPaymentMethod === "cash"
                     ? "EFECTIVO"
                     : selectedPaymentMethod === "card"
-                    ? "TARJETA"
-                    : selectedPaymentMethod === "transfer"
-                    ? "TRANSFERENCIA"
-                    : selectedPaymentMethod === "mobile"
-                    ? "PAGO_MOVIL"
-                    : "OTRO",
+                        ? "TARJETA"
+                        : selectedPaymentMethod === "transfer"
+                            ? "TRANSFERENCIA"
+                            : selectedPaymentMethod === "mobile"
+                                ? "PAGO_MOVIL"
+                                : "OTRO",
             paymentStatus: "PAID",
             paymentReference: referenceNumber || null,
             notes: orderNotes,
@@ -768,21 +770,21 @@ export default function OrdersPage() {
 
                             {(selectedPaymentMethod === "transfer" ||
                                 selectedPaymentMethod === "mobile") && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="referenceNumber">
-                                        Número de Referencia
-                                    </Label>
-                                    <Input
-                                        id="referenceNumber"
-                                        placeholder="Número de referencia de la transacción"
-                                        value={referenceNumber}
-                                        onChange={(e) =>
-                                            setReferenceNumber(e.target.value)
-                                        }
-                                        className="bg-white"
-                                    />
-                                </div>
-                            )}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="referenceNumber">
+                                            Número de Referencia
+                                        </Label>
+                                        <Input
+                                            id="referenceNumber"
+                                            placeholder="Número de referencia de la transacción"
+                                            value={referenceNumber}
+                                            onChange={(e) =>
+                                                setReferenceNumber(e.target.value)
+                                            }
+                                            className="bg-white"
+                                        />
+                                    </div>
+                                )}
 
                             <div className="space-y-2">
                                 <Label htmlFor="products">Productos</Label>
@@ -860,7 +862,7 @@ export default function OrdersPage() {
                                                             className="p-3 flex justify-between items-center"
                                                         >
                                                             {editingProductIndex ===
-                                                            index ? (
+                                                                index ? (
                                                                 <div className="flex items-center gap-2 w-full">
                                                                     <div className="flex-1">
                                                                         <p className="font-medium">
@@ -923,7 +925,7 @@ export default function OrdersPage() {
                                                                             ={" "}
                                                                             {formatCurrency(
                                                                                 product.price *
-                                                                                    product.quantity
+                                                                                product.quantity
                                                                             )}
                                                                         </p>
                                                                     </div>
@@ -1112,7 +1114,7 @@ export default function OrdersPage() {
                                 </th>
                                 <th
                                     className="px-4 py-3 text-left text-sm font-medium text-gray-500 cursor-pointer"
-                                    // Columna para ubicación de compra
+                                // Columna para ubicación de compra
                                 >
                                     <div className="flex items-center">
                                         Ubicación
@@ -1146,11 +1148,11 @@ export default function OrdersPage() {
                                             {/* Mostrar nombre de cliente según tipo de compra */}
                                             {order.isInStore
                                                 ? order.nombre ||
-                                                  (order.phone
-                                                      ? `Cliente en tienda (${order.phone})`
-                                                      : "Cliente en tienda")
+                                                (order.phone
+                                                    ? `Cliente en tienda (${order.phone})`
+                                                    : "Cliente en tienda")
                                                 : order.user?.name ||
-                                                  "Cliente no registrado"}
+                                                "Cliente no registrado"}
                                         </td>
                                         <td className="px-4 py-3 text-sm">
                                             {new Date(
@@ -1164,31 +1166,26 @@ export default function OrdersPage() {
                                             <Badge
                                                 variant="outline"
                                                 className={`
-                          ${
-                              order.status === "SHIPPED"
-                                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                                  : ""
-                          }
-                          ${
-                              order.status === "PROCESSING"
-                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                  : ""
-                          }
-                          ${
-                              order.status === "CANCELLED"
-                                  ? "bg-red-50 text-red-700 border-red-200"
-                                  : ""
-                          }
-                          ${
-                              order.status === "PENDING"
-                                  ? "bg-orange-50 text-orange-700 border-orange-200"
-                                  : ""
-                          }
-                          ${
-                              order.status === "COMPLETED"
-                                  ? "bg-green-50 text-green-700 border-green-200"
-                                  : ""
-                          }
+                          ${order.status === "SHIPPED"
+                                                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                        : ""
+                                                    }
+                          ${order.status === "PROCESSING"
+                                                        ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                                        : ""
+                                                    }
+                          ${order.status === "CANCELLED"
+                                                        ? "bg-red-50 text-red-700 border-red-200"
+                                                        : ""
+                                                    }
+                          ${order.status === "PENDING"
+                                                        ? "bg-orange-50 text-orange-700 border-orange-200"
+                                                        : ""
+                                                    }
+                          ${order.status === "COMPLETED"
+                                                        ? "bg-green-50 text-green-700 border-green-200"
+                                                        : ""
+                                                    }
                         `}
                                             >
                                                 {translateOrderStatus(
@@ -1200,21 +1197,18 @@ export default function OrdersPage() {
                                             <Badge
                                                 variant="outline"
                                                 className={`
-                          ${
-                              order.paymentStatus === "PAID"
-                                  ? "bg-green-50 text-green-700 border-green-200"
-                                  : ""
-                          }
-                          ${
-                              order.paymentStatus === "PENDING"
-                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                  : ""
-                          }
-                          ${
-                              order.paymentStatus === "FAILED"
-                                  ? "bg-red-50 text-red-700 border-red-200"
-                                  : ""
-                          }
+                          ${order.paymentStatus === "PAID"
+                                                        ? "bg-green-50 text-green-700 border-green-200"
+                                                        : ""
+                                                    }
+                          ${order.paymentStatus === "PENDING"
+                                                        ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                                        : ""
+                                                    }
+                          ${order.paymentStatus === "FAILED"
+                                                        ? "bg-red-50 text-red-700 border-red-200"
+                                                        : ""
+                                                    }
                         `}
                                             >
                                                 {translatePaymentStatus(
@@ -1330,7 +1324,7 @@ export default function OrdersPage() {
                                 </div>
                                 <div className="flex gap-2">
                                     {selectedOrder &&
-                                    selectedOrder.isInStore ? (
+                                        selectedOrder.isInStore ? (
                                         <Badge variant="secondary">
                                             Venta en Tienda
                                         </Badge>
@@ -1343,31 +1337,26 @@ export default function OrdersPage() {
                                     <Badge
                                         variant="outline"
                                         className={`
-                      ${
-                          selectedOrder?.status === "SHIPPED"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : ""
-                      }
-                      ${
-                          selectedOrder?.status === "PROCESSING"
-                              ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                              : ""
-                      }
-                      ${
-                          selectedOrder?.status === "CANCELLED"
-                              ? "bg-red-50 text-red-700 border-red-200"
-                              : ""
-                      }
-                      ${
-                          selectedOrder?.status === "PENDING"
-                              ? "bg-orange-50 text-orange-700 border-orange-200"
-                              : ""
-                      }
-                      ${
-                          selectedOrder?.status === "COMPLETED"
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : ""
-                      }
+                      ${selectedOrder?.status === "SHIPPED"
+                                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                : ""
+                                            }
+                      ${selectedOrder?.status === "PROCESSING"
+                                                ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                                : ""
+                                            }
+                      ${selectedOrder?.status === "CANCELLED"
+                                                ? "bg-red-50 text-red-700 border-red-200"
+                                                : ""
+                                            }
+                      ${selectedOrder?.status === "PENDING"
+                                                ? "bg-orange-50 text-orange-700 border-orange-200"
+                                                : ""
+                                            }
+                      ${selectedOrder?.status === "COMPLETED"
+                                                ? "bg-green-50 text-green-700 border-green-200"
+                                                : ""
+                                            }
                     `}
                                     >
                                         {selectedOrder &&
@@ -1378,21 +1367,18 @@ export default function OrdersPage() {
                                     <Badge
                                         variant="outline"
                                         className={`
-                      ${
-                          selectedOrder?.paymentStatus === "PAID"
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : ""
-                      }
-                      ${
-                          selectedOrder?.paymentStatus === "PENDING"
-                              ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                              : ""
-                      }
-                      ${
-                          selectedOrder?.paymentStatus === "FAILED"
-                              ? "bg-red-50 text-red-700 border-red-200"
-                              : ""
-                      }
+                      ${selectedOrder?.paymentStatus === "PAID"
+                                                ? "bg-green-50 text-green-700 border-green-200"
+                                                : ""
+                                            }
+                      ${selectedOrder?.paymentStatus === "PENDING"
+                                                ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                                : ""
+                                            }
+                      ${selectedOrder?.paymentStatus === "FAILED"
+                                                ? "bg-red-50 text-red-700 border-red-200"
+                                                : ""
+                                            }
                     `}
                                     >
                                         {selectedOrder &&
@@ -1566,21 +1552,18 @@ export default function OrdersPage() {
                                             <Badge
                                                 variant="outline"
                                                 className={`
-                          ${
-                              selectedOrder.paymentStatus === "PAID"
-                                  ? "bg-green-50 text-green-700 border-green-200"
-                                  : ""
-                          }
-                          ${
-                              selectedOrder.paymentStatus === "PENDING"
-                                  ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                                  : ""
-                          }
-                          ${
-                              selectedOrder.paymentStatus === "FAILED"
-                                  ? "bg-red-50 text-red-700 border-red-200"
-                                  : ""
-                          }
+                          ${selectedOrder.paymentStatus === "PAID"
+                                                        ? "bg-green-50 text-green-700 border-green-200"
+                                                        : ""
+                                                    }
+                          ${selectedOrder.paymentStatus === "PENDING"
+                                                        ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                                        : ""
+                                                    }
+                          ${selectedOrder.paymentStatus === "FAILED"
+                                                        ? "bg-red-50 text-red-700 border-red-200"
+                                                        : ""
+                                                    }
                         `}
                                             >
                                                 {translatePaymentStatus(
@@ -1634,92 +1617,100 @@ export default function OrdersPage() {
                                                         Precio
                                                     </th>
                                                     <th className="text-right py-2 px-4 text-gray-500 font-medium">
+                                                        Precio (Bs.)
+                                                    </th>
+                                                    <th className="text-right py-2 px-4 text-gray-500 font-medium">
                                                         Total
+                                                    </th>
+                                                    <th className="text-right py-2 px-4 text-gray-500 font-medium">
+                                                        Total (Bs.)
                                                     </th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {selectedOrder.items.map(
-                                                    (item) => (
-                                                        <tr
-                                                            key={`invoice-item-${item.id}`}
-                                                            className="bg-white"
-                                                        >
-                                                            <td className="py-2 px-4 border-b">
-                                                                {allProducts.find(
-                                                                    (product) =>
-                                                                        product.id ===
-                                                                        String(
-                                                                            item.productId
-                                                                        )
-                                                                )?.name ||
-                                                                    "Nombre no disponible"}
-                                                            </td>
-                                                            <td className="text-right py-2 px-4 border-b">
-                                                                {item.quantity}
-                                                            </td>
-                                                            <td className="text-right py-2 px-4 border-b">
-                                                                {formatCurrency(
-                                                                    item.price
-                                                                )}
-                                                            </td>
-                                                            <td className="text-right py-2 px-4 border-b">
-                                                                {formatCurrency(
-                                                                    item.price *
-                                                                        item.quantity
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    )
-                                                )}
+                                                {selectedOrder.items.map((item) => (
+                                                    <tr
+                                                        key={`invoice-item-${item.id}`}
+                                                        className="bg-white"
+                                                    >
+                                                        <td className="py-2 px-4 border-b">
+                                                            {allProducts.find(
+                                                                (product) =>
+                                                                    product.id ===
+                                                                    String(item.productId)
+                                                            )?.name || "Nombre no disponible"}
+                                                        </td>
+                                                        <td className="text-right py-2 px-4 border-b">
+                                                            {item.quantity}
+                                                        </td>
+                                                        <td className="text-right py-2 px-4 border-b">
+                                                            {formatCurrency(item.price)}
+                                                        </td>
+                                                        <td className="text-right py-2 px-4 border-b">
+                                                            {rate ? `${(item.price * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
+                                                        </td>
+                                                        <td className="text-right py-2 px-4 border-b">
+                                                            {formatCurrency(item.price * item.quantity)}
+                                                        </td>
+                                                        <td className="text-right py-2 px-4 border-b">
+                                                            {rate ? `${(item.price * item.quantity * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
                                                 <tr>
                                                     <td
-                                                        colSpan={3}
+                                                        colSpan={4}
                                                         className="text-right py-3 px-4 font-medium"
                                                     >
                                                         Subtotal
                                                     </td>
                                                     <td className="text-right py-3 px-4 font-medium">
-                                                        {formatCurrency(
-                                                            selectedOrder.subtotal ??
-                                                                0
-                                                        )}
+                                                        {formatCurrency(selectedOrder.subtotal ?? 0)}
+                                                    </td>
+                                                    <td className="text-right py-3 px-4 font-medium">
+                                                        {rate ? `${((selectedOrder.subtotal ?? 0) * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
                                                     </td>
                                                 </tr>
                                                 <tr>
                                                     <td
-                                                        colSpan={3}
-                                                        className={`text-right py-3 px-4 ${
-                                                            selectedOrder.discountAmount &&
+                                                        colSpan={4}
+                                                        className={`text-right py-3 px-4 ${selectedOrder.discountAmount &&
                                                             selectedOrder.discountAmount >
-                                                                0
-                                                                ? "text-green-600"
-                                                                : "text-gray-500"
-                                                        }`}
+                                                            0
+                                                            ? "text-green-600"
+                                                            : "text-gray-500"
+                                                            }`}
                                                     >
                                                         Descuento
                                                     </td>
                                                     <td
-                                                        className={`text-right py-3 px-4 ${
-                                                            selectedOrder.discountAmount &&
+                                                        className={`text-right py-3 px-4 ${selectedOrder.discountAmount &&
                                                             selectedOrder.discountAmount >
-                                                                0
-                                                                ? "text-green-600"
-                                                                : "text-gray-500"
-                                                        }`}
+                                                            0
+                                                            ? "text-green-600"
+                                                            : "text-gray-500"
+                                                            }`}
                                                     >
                                                         {selectedOrder.discountAmount &&
-                                                        selectedOrder.discountAmount >
+                                                            selectedOrder.discountAmount >
                                                             0
-                                                            ? `-${formatCurrency(
-                                                                  selectedOrder.discountAmount
-                                                              )}`
+                                                            ? `-${formatCurrency(selectedOrder.discountAmount)}`
                                                             : formatCurrency(0)}
+                                                    </td>
+                                                    <td
+                                                        className={`text-right py-3 px-4 ${selectedOrder.discountAmount &&
+                                                            selectedOrder.discountAmount >
+                                                            0
+                                                            ? "text-green-600"
+                                                            : "text-gray-500"
+                                                            }`}
+                                                    >
+                                                        {rate ? `-${((selectedOrder.discountAmount ?? 0) * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
                                                     </td>
                                                 </tr>
                                                 {selectedOrder.discountAmount &&
                                                     selectedOrder.discountAmount >
-                                                        0 &&
+                                                    0 &&
                                                     selectedOrder.discountCode && (
                                                         <tr>
                                                             <td
@@ -1737,46 +1728,44 @@ export default function OrdersPage() {
                                                     )}
                                                 <tr>
                                                     <td
-                                                        colSpan={3}
+                                                        colSpan={4}
                                                         className="text-right py-3 px-4 font-medium"
                                                     >
                                                         IVA (16%)
                                                     </td>
                                                     <td className="text-right py-3 px-4 font-medium">
-                                                        {formatCurrency(
-                                                            selectedOrder.taxAmount ??
-                                                                0
-                                                        )}
+                                                        {formatCurrency(selectedOrder.taxAmount ?? 0)}
+                                                    </td>
+                                                    <td className="text-right py-3 px-4 font-medium">
+                                                        {rate ? `${((selectedOrder.taxAmount ?? 0) * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
                                                     </td>
                                                 </tr>
                                                 <tr>
                                                     <td
-                                                        colSpan={3}
+                                                        colSpan={4}
                                                         className="text-right py-3 px-4 font-medium"
                                                     >
                                                         Envío
                                                     </td>
                                                     <td className="text-right py-3 px-4 font-medium">
-                                                        {selectedOrder.shippingAmount ===
-                                                        0
-                                                            ? "Gratis"
-                                                            : formatCurrency(
-                                                                  selectedOrder.shippingAmount ??
-                                                                      0
-                                                              )}
+                                                        {selectedOrder.shippingAmount === 0 ? "Gratis" : formatCurrency(selectedOrder.shippingAmount ?? 0)}
+                                                    </td>
+                                                    <td className="text-right py-3 px-4 font-medium">
+                                                        {rate ? (selectedOrder.shippingAmount === 0 ? "Gratis" : `${((selectedOrder.shippingAmount ?? 0) * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}`) : '--'}
                                                     </td>
                                                 </tr>
                                                 <tr>
                                                     <td
-                                                        colSpan={3}
+                                                        colSpan={4}
                                                         className="text-right py-3 px-4 font-medium"
                                                     >
                                                         Total
                                                     </td>
                                                     <td className="text-right py-3 px-4 font-bold text-lg">
-                                                        {formatCurrency(
-                                                            selectedOrder.total
-                                                        )}
+                                                        {formatCurrency(selectedOrder.total)}
+                                                    </td>
+                                                    <td className="text-right py-3 px-4 font-bold text-lg">
+                                                        {rate ? `${(selectedOrder.total * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -2076,7 +2065,7 @@ export default function OrdersPage() {
                                                     <td className="text-right py-2 px-4 border-b">
                                                         {formatCurrency(
                                                             item.price *
-                                                                item.quantity
+                                                            item.quantity
                                                         )}
                                                     </td>
                                                 </tr>
@@ -2099,30 +2088,29 @@ export default function OrdersPage() {
                                         </div>
                                         <div className="flex justify-between py-2">
                                             <span
-                                                className={`font-medium ${
-                                                    selectedOrder.discountAmount &&
+                                                className={`font-medium ${selectedOrder.discountAmount &&
                                                     selectedOrder.discountAmount >
-                                                        0
-                                                        ? "text-green-600"
-                                                        : "text-gray-500"
-                                                }`}
+                                                    0
+                                                    ? "text-green-600"
+                                                    : "text-gray-500"
+                                                    }`}
                                             >
                                                 Descuento:
                                             </span>
                                             <span
                                                 className={
                                                     selectedOrder.discountAmount &&
-                                                    selectedOrder.discountAmount >
+                                                        selectedOrder.discountAmount >
                                                         0
                                                         ? "text-green-600"
                                                         : "text-gray-500"
                                                 }
                                             >
                                                 {selectedOrder.discountAmount &&
-                                                selectedOrder.discountAmount > 0
+                                                    selectedOrder.discountAmount > 0
                                                     ? `-${formatCurrency(
-                                                          selectedOrder.discountAmount
-                                                      )}`
+                                                        selectedOrder.discountAmount
+                                                    )}`
                                                     : formatCurrency(0)}
                                             </span>
                                         </div>
@@ -2156,12 +2144,12 @@ export default function OrdersPage() {
                                             </span>
                                             <span className="text-gray-700">
                                                 {selectedOrder.shippingAmount ===
-                                                0
+                                                    0
                                                     ? "Gratis"
                                                     : formatCurrency(
-                                                          selectedOrder.shippingAmount ??
-                                                              0
-                                                      )}
+                                                        selectedOrder.shippingAmount ??
+                                                        0
+                                                    )}
                                             </span>
                                         </div>
                                         <div className="flex justify-between py-2 border-t mt-2 pt-2">
