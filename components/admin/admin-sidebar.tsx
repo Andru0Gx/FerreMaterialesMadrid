@@ -23,8 +23,8 @@ const sidebarLinks = [
     icon: Package,
   },
   {
-    title: "Usuarios",
-    href: "/admin/usuarios",
+    title: "Clientes",
+    href: "/admin/clientes",
     icon: Users,
   },
   {
@@ -34,8 +34,8 @@ const sidebarLinks = [
     requiresSuperAdmin: true, // Solo superadmin puede ver este módulo
   },
   {
-    title: "Administradores",
-    href: "/admin/administradores",
+    title: "Usuarios",
+    href: "/admin/usuarios",
     icon: ShieldCheck,
     requiresSuperAdmin: true, // Only super admins can see this
   },
