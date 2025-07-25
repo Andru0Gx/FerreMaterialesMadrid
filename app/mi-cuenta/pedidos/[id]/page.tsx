@@ -94,12 +94,12 @@ interface OrderHistory {
     id: number;
     orderId: string;
     status?:
-        | "PENDING"
-        | "PROCESSING"
-        | "COMPLETED"
-        | "CANCELLED"
-        | "SHIPPED"
-        | null;
+    | "PENDING"
+    | "PROCESSING"
+    | "COMPLETED"
+    | "CANCELLED"
+    | "SHIPPED"
+    | null;
     paymentStatus?: "PENDING" | "PAID" | "FAILED" | null;
     changedAt: string;
     order: Order;
@@ -127,12 +127,12 @@ interface Order {
     createdAt: string;
     updatedAt: string;
     paymentMethod?:
-        | "PAGO_MOVIL"
-        | "TRANSFERENCIA"
-        | "EFECTIVO"
-        | "TARJETA"
-        | "OTRO"
-        | null;
+    | "PAGO_MOVIL"
+    | "TRANSFERENCIA"
+    | "EFECTIVO"
+    | "TARJETA"
+    | "OTRO"
+    | null;
     paymentBank?: string | null;
     paymentReference?: string | null;
     notes?: string | null;
@@ -157,7 +157,7 @@ export default function PedidoDetallePage({
     const [redirectToLogin, setRedirectToLogin] = useState(false);
     const [isNotaDialogOpen, setIsNotaDialogOpen] = useState(false);
     const notaRef = useRef<HTMLDivElement>(null);
-    const { rate: exchangeRate, loading: rateLoading } = useExchangeRate();
+    const { rate, loading: rateLoading, error: rateError } = useExchangeRate();
 
     // Utilidad para formatear moneda
     const formatCurrency = (amount: number) =>
@@ -404,10 +404,10 @@ export default function PedidoDetallePage({
                                             <img
                                                 src={
                                                     item.product.images &&
-                                                    item.product.images.length >
+                                                        item.product.images.length >
                                                         0
                                                         ? item.product.images[0]
-                                                              .imageUrl
+                                                            .imageUrl
                                                         : "/placeholder.svg"
                                                 }
                                                 alt={item.product.name}
@@ -430,13 +430,13 @@ export default function PedidoDetallePage({
                                                         currency: "USD",
                                                     })
                                                     .replace("USD", "$")}
-                                                {exchangeRate &&
+                                                {rate &&
                                                     !rateLoading && (
                                                         <span className="block text-xs text-gray-500">
                                                             ≈{" "}
                                                             {(
                                                                 item.price *
-                                                                exchangeRate
+                                                                rate
                                                             ).toLocaleString(
                                                                 "es-VE",
                                                                 {
@@ -465,11 +465,11 @@ export default function PedidoDetallePage({
                                                 currency: "USD",
                                             })
                                             .replace("USD", "$")}
-                                        {exchangeRate && !rateLoading && (
+                                        {rate && !rateLoading && (
                                             <span className="block text-xs text-gray-500 text-right">
                                                 ≈{" "}
                                                 {(
-                                                    subtotal * exchangeRate
+                                                    subtotal * rate
                                                 ).toLocaleString("es-VE", {
                                                     style: "currency",
                                                     currency: "VES",
@@ -491,12 +491,12 @@ export default function PedidoDetallePage({
                                                     currency: "USD",
                                                 })
                                                 .replace("USD", "$")}
-                                            {exchangeRate && !rateLoading && (
+                                            {rate && !rateLoading && (
                                                 <span className="block text-xs text-right">
                                                     -
                                                     {(
                                                         discountAmount *
-                                                        exchangeRate
+                                                        rate
                                                     ).toLocaleString("es-VE", {
                                                         style: "currency",
                                                         currency: "VES",
@@ -517,11 +517,11 @@ export default function PedidoDetallePage({
                                                 currency: "USD",
                                             })
                                             .replace("USD", "$")}
-                                        {exchangeRate && !rateLoading && (
+                                        {rate && !rateLoading && (
                                             <span className="block text-xs text-gray-500 text-right">
                                                 ≈{" "}
                                                 {(
-                                                    tax * exchangeRate
+                                                    tax * rate
                                                 ).toLocaleString("es-VE", {
                                                     style: "currency",
                                                     currency: "VES",
@@ -545,13 +545,13 @@ export default function PedidoDetallePage({
                                                         currency: "USD",
                                                     })
                                                     .replace("USD", "$")}
-                                                {exchangeRate &&
+                                                {rate &&
                                                     !rateLoading && (
                                                         <span className="block text-xs text-gray-500 text-right">
                                                             ≈{" "}
                                                             {(
                                                                 shipping *
-                                                                exchangeRate
+                                                                rate
                                                             ).toLocaleString(
                                                                 "es-VE",
                                                                 {
@@ -576,11 +576,11 @@ export default function PedidoDetallePage({
                                                 currency: "USD",
                                             })
                                             .replace("USD", "$")}
-                                        {exchangeRate && !rateLoading && (
+                                        {rate && !rateLoading && (
                                             <span className="block text-xs text-gray-500 text-right">
                                                 ≈{" "}
                                                 {(
-                                                    total * exchangeRate
+                                                    total * rate
                                                 ).toLocaleString("es-VE", {
                                                     style: "currency",
                                                     currency: "VES",
@@ -600,8 +600,8 @@ export default function PedidoDetallePage({
                         <CardContent>
                             <div className="relative">
                                 {order.histories &&
-                                Array.isArray(order.histories) &&
-                                order.histories.length > 0 ? (
+                                    Array.isArray(order.histories) &&
+                                    order.histories.length > 0 ? (
                                     order.histories.map((history, index) => (
                                         <div
                                             key={history.id}
@@ -609,26 +609,25 @@ export default function PedidoDetallePage({
                                         >
                                             <div className="flex flex-col items-center mr-4">
                                                 <div
-                                                    className={`rounded-full h-8 w-8 flex items-center justify-center ${
-                                                        index ===
+                                                    className={`rounded-full h-8 w-8 flex items-center justify-center ${index ===
                                                         order.histories.length -
-                                                            1
-                                                            ? "bg-[var(--primary-color)] text-white"
-                                                            : "bg-gray-200"
-                                                    }`}
+                                                        1
+                                                        ? "bg-[var(--primary-color)] text-white"
+                                                        : "bg-gray-200"
+                                                        }`}
                                                 >
                                                     {index + 1}
                                                 </div>
                                                 {index <
                                                     order.histories.length -
-                                                        1 && (
-                                                    <div
-                                                        className="flex-1 w-0.5 bg-gray-200"
-                                                        style={{
-                                                            minHeight: 32,
-                                                        }}
-                                                    ></div>
-                                                )}
+                                                    1 && (
+                                                        <div
+                                                            className="flex-1 w-0.5 bg-gray-200"
+                                                            style={{
+                                                                minHeight: 32,
+                                                            }}
+                                                        ></div>
+                                                    )}
                                             </div>
                                             <div className="pb-8 flex-1">
                                                 <div className="flex items-center gap-2">
@@ -745,9 +744,8 @@ export default function PedidoDetallePage({
                                     href={`https://wa.me/${COMPANY_INFO.telefono.replace(
                                         /\D/g,
                                         ""
-                                    )}?text=Hola,%20necesito%20ayuda%20con%20mi%20pedido%20${
-                                        order.orderNumber
-                                    }%20y%20mi%20nota%20de%20compra`}
+                                    )}?text=Hola,%20necesito%20ayuda%20con%20mi%20pedido%20${order.orderNumber
+                                        }%20y%20mi%20nota%20de%20compra`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
@@ -765,7 +763,7 @@ export default function PedidoDetallePage({
                                 open={isNotaDialogOpen}
                                 onOpenChange={setIsNotaDialogOpen}
                             >
-                                <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                                <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
                                     <DialogHeader>
                                         <DialogTitle className="flex items-center justify-between">
                                             <span>
@@ -896,10 +894,16 @@ export default function PedidoDetallePage({
                                                             Cantidad
                                                         </th>
                                                         <th className="text-right py-3 px-4 border-b text-sm text-gray-600">
-                                                            Precio Unit.
+                                                            Precio Unit. ($)
                                                         </th>
                                                         <th className="text-right py-3 px-4 border-b text-sm text-gray-600">
-                                                            Total
+                                                            Precio Unit. (Bs.)
+                                                        </th>
+                                                        <th className="text-right py-3 px-4 border-b text-sm text-gray-600">
+                                                            Total ($)
+                                                        </th>
+                                                        <th className="text-right py-3 px-4 border-b text-sm text-gray-600">
+                                                            Total (Bs.)
                                                         </th>
                                                     </tr>
                                                 </thead>
@@ -920,15 +924,23 @@ export default function PedidoDetallePage({
                                                                 {item.quantity}
                                                             </td>
                                                             <td className="text-right py-2 px-4 border-b">
-                                                                {formatCurrency(
-                                                                    item.price
-                                                                )}
+                                                                {item.price.toLocaleString("es-MX", { style: "currency", currency: "USD" }).replace("USD", "$")}
                                                             </td>
                                                             <td className="text-right py-2 px-4 border-b">
-                                                                {formatCurrency(
-                                                                    item.price *
-                                                                        item.quantity
-                                                                )}
+                                                                {rate ? `${(item.price * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
+                                                            </td>
+                                                            <td className="text-right py-2 px-4 border-b">
+                                                                {(
+                                                                    item.price * item.quantity
+                                                                )
+                                                                    .toLocaleString("es-MX", {
+                                                                        style: "currency",
+                                                                        currency: "USD",
+                                                                    })
+                                                                    .replace("USD", "$")}
+                                                            </td>
+                                                            <td className="text-right py-2 px-4 border-b">
+                                                                {rate ? `${(item.price * item.quantity * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -936,15 +948,21 @@ export default function PedidoDetallePage({
                                             </table>
                                         </div>
                                         <div className="flex justify-end mb-8">
-                                            <div className="w-64">
+                                            <div className="w-64 space-y-3">
                                                 <div className="flex justify-between py-2">
                                                     <span className="font-medium text-gray-600">
                                                         Subtotal:
                                                     </span>
                                                     <span className="text-gray-700">
-                                                        {formatCurrency(
-                                                            subtotal
-                                                        )}
+                                                        {subtotal
+                                                            .toLocaleString("es-MX", {
+                                                                style: "currency",
+                                                                currency: "USD",
+                                                            })
+                                                            .replace("USD", "$")}
+                                                    </span>
+                                                    <span className="text-gray-700 ml-4">
+                                                        {rate ? `${(subtotal * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between py-2">
@@ -952,7 +970,15 @@ export default function PedidoDetallePage({
                                                         IVA (16%):
                                                     </span>
                                                     <span className="text-gray-700">
-                                                        {formatCurrency(tax)}
+                                                        {tax
+                                                            .toLocaleString("es-MX", {
+                                                                style: "currency",
+                                                                currency: "USD",
+                                                            })
+                                                            .replace("USD", "$")}
+                                                    </span>
+                                                    <span className="text-gray-700 ml-4">
+                                                        {rate ? `${(tax * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between py-2 border-t mt-2 pt-2">
@@ -960,7 +986,15 @@ export default function PedidoDetallePage({
                                                         TOTAL:
                                                     </span>
                                                     <span className="font-bold text-gray-800">
-                                                        {formatCurrency(total)}
+                                                        {total
+                                                            .toLocaleString("es-MX", {
+                                                                style: "currency",
+                                                                currency: "USD",
+                                                            })
+                                                            .replace("USD", "$")}
+                                                    </span>
+                                                    <span className="font-bold text-gray-800 ml-4">
+                                                        {rate ? `${(total * rate).toLocaleString('es-VE', { style: 'currency', currency: 'VES' })}` : '--'}
                                                     </span>
                                                 </div>
                                             </div>
