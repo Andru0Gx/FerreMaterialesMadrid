@@ -157,7 +157,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
             )}
           </div>
 
-          <div className="flex flex-col gap-3 mt-4">
+          {/* <div className="flex flex-col gap-3 mt-4">
             <div className="flex items-center gap-2">
               <Truck className="w-5 h-5 text-[var(--primary-color)]" />
               <span className="text-sm">Envío gratis en pedidos superiores a $50</span>
@@ -166,7 +166,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
               <ShieldCheck className="w-5 h-5 text-[var(--primary-color)]" />
               <span className="text-sm">Garantía de 30 días</span>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -197,7 +197,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
         <div className="py-6">
           <div id="description" className="mb-8">
             <h2 className="text-xl font-semibold mb-4">Descripción</h2>
-            <p className="text-gray-700">{product.description}</p>
+            <p className="text-gray-700 text-justify">{product.description}</p>
           </div>
 
           <div id="specifications" className="mb-8">
